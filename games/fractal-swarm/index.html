@@ -195,7 +195,7 @@ const CFG = {
   GRAV_STR:     0.055,  // gravity pull per frame (toward well)
   PLAYER_SPD:   6,
   BULLET_SPD:   11,
-  ENEMY_SPD:    3.4,
+  ENEMY_SPD:    5.0,
   FIRE_COOL:    17,     // player fire cooldown frames
   // Audio
   BPM:          170,
@@ -291,6 +291,35 @@ function drawStars() {
     bgX.fillStyle = `rgba(255,255,255,${s.bright})`;
     bgX.fill();
   }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// EMOJI CACHE — pre-render each emoji+size to an offscreen canvas
+// so we drawImage instead of fillText+shadowBlur every frame
+// ═══════════════════════════════════════════════════════════════════
+const emojiCache = new Map();
+
+function getEmojiCanvas(emoji, size, glowColor) {
+  const key = `${emoji}_${size}`;
+  if (emojiCache.has(key)) return emojiCache.get(key);
+
+  const pad = Math.ceil(size * 0.65);
+  const oc  = document.createElement('canvas');
+  oc.width  = size + pad * 2;
+  oc.height = size + pad * 2;
+  const ox  = oc.getContext('2d');
+  const cx  = oc.width / 2, cy = oc.height / 2;
+
+  // Single glow pass — cached, so cost is paid once
+  ox.shadowColor  = glowColor;
+  ox.shadowBlur   = size * 0.5;
+  ox.font         = `${size * 0.88}px serif`;
+  ox.textAlign    = 'center';
+  ox.textBaseline = 'middle';
+  ox.fillText(emoji, cx, cy);
+
+  emojiCache.set(key, oc);
+  return oc;
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -390,24 +419,12 @@ class Entity {
 
   draw() {
     if (this.hitFlash > 0 && frame % 2 === 0) return; // flash blink
+    const oc = getEmojiCanvas(this.emoji, this.size, this.glow);
     ctx.save();
     ctx.translate(this.x, this.y);
     ctx.rotate(this.angle);
-
-    const sz   = this.size * 0.88;
-    ctx.font        = `${sz}px serif`;
-    ctx.textAlign   = 'center';
-    ctx.textBaseline = 'middle';
-
-    // Neon bloom — two passes
-    ctx.shadowColor = this.glow;
-    ctx.shadowBlur  = sz * 0.55;
-    ctx.fillText(this.emoji, 0, 0);
-
-    ctx.globalAlpha = 0.28;
-    ctx.shadowBlur  = sz * 1.1;
-    ctx.fillText(this.emoji, 0, 0);
-
+    // drawImage is GPU-accelerated and avoids per-frame shadowBlur cost
+    ctx.drawImage(oc, -oc.width / 2, -oc.height / 2);
     ctx.restore();
   }
 }
@@ -424,12 +441,15 @@ function updateBullet(b) {
   b.trail.push({ x: b.x, y: b.y });
   if (b.trail.length > 11) b.trail.shift();
 
-  // Gravity toward well at (W/2, H*0.40)
-  const wx = W / 2, wy = H * 0.40;
-  const dx = wx - b.x, dy = wy - b.y;
-  const dist = Math.sqrt(dx*dx + dy*dy) + 1;
-  b.vx += (dx / dist) * CFG.GRAV_STR;
-  b.vy += (dy / dist) * CFG.GRAV_STR;
+  // Gravity toward well — only curves player bullets.
+  // Enemy bullets fly straight so they reliably reach the player.
+  if (b.fromPlayer) {
+    const wx = W / 2, wy = H * 0.40;
+    const dx = wx - b.x, dy = wy - b.y;
+    const dist = Math.sqrt(dx*dx + dy*dy) + 1;
+    b.vx += (dx / dist) * CFG.GRAV_STR;
+    b.vy += (dy / dist) * CFG.GRAV_STR;
+  }
 
   // Speed cap
   const spd = Math.hypot(b.vx, b.vy);
@@ -718,6 +738,12 @@ function startWave(w) {
   bullets  = [];
   novas    = [];
   particles = [];
+
+  // Pre-warm emoji cache for this wave theme so splits never stutter
+  const theme = (w - 1) % 4;
+  for (let d = 0; d < 4; d++) {
+    getEmojiCanvas(CFG.WAVE_EMOJIS[theme % 4][d], CFG.SIZES[d], CFG.GLOW[d]);
+  }
 
   const theme  = (w - 1) % 4;
   const nGiant = Math.min(w, 5);
