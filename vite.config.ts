@@ -7,6 +7,7 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, "index.html"),
         snake: resolve(__dirname, "games/snake/index.html"),
+        flappy: resolve(__dirname, "games/flappy/index.html"),
       },
     },
   },
