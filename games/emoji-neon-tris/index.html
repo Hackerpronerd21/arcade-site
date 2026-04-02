@@ -292,9 +292,9 @@ nextCanvas.width  = 4 * CELL;
 nextCanvas.height = 4 * CELL;
 
 // Off-screen canvas for particle batching — one blit per frame to pCtx
-let pOffscreen = new OffscreenCanvas
+const pOffscreen = typeof OffscreenCanvas !== 'undefined'
   ? new OffscreenCanvas(window.innerWidth, window.innerHeight)
-  : (() => { const c=document.createElement('canvas'); c.width=window.innerWidth; c.height=window.innerHeight; return c; })();
+  : (() => { const c = document.createElement('canvas'); c.width = window.innerWidth; c.height = window.innerHeight; return c; })();
 let pOff = pOffscreen.getContext('2d');
 
 function resizeCanvases() {
