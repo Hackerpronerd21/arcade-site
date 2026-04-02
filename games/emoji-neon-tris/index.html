@@ -3,9 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Emoji-Neon-Tris</title>
+  <title>Emoji-Neon-Tris — Xavier's Arcade</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bc: #9B5DE5;   /* border / glow color — updated per wave */
+    }
 
     body {
       background: #000;
@@ -16,230 +20,139 @@
     }
 
     #bgCanvas, #particleCanvas {
-      position: fixed;
-      top: 0; left: 0;
+      position: fixed; top: 0; left: 0;
       width: 100%; height: 100%;
       pointer-events: none;
     }
-    #bgCanvas    { z-index: 0; }
-    #particleCanvas { z-index: 10; }
+    #bgCanvas      { z-index: 0; }
+    #particleCanvas{ z-index: 10; }
 
     #ui {
-      position: relative;
-      z-index: 5;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      gap: 12px;
+      position: relative; z-index: 5;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      min-height: 100vh; gap: 12px;
     }
 
     #title {
-      font-size: 2rem;
-      font-weight: bold;
-      letter-spacing: 6px;
-      text-transform: uppercase;
-      text-shadow:
-        0 0 8px #FF2D78,
-        0 0 20px #FF2D78,
-        0 0 40px #FF2D78;
+      font-size: 2rem; font-weight: bold;
+      letter-spacing: 6px; text-transform: uppercase;
       color: #fff;
+      text-shadow: 0 0 8px var(--bc), 0 0 24px var(--bc), 0 0 48px var(--bc);
     }
 
-    #playArea {
-      display: flex;
-      align-items: flex-start;
-      gap: 20px;
-    }
+    #playArea { display: flex; align-items: flex-start; gap: 20px; }
 
+    /* ── Game border — color driven entirely by --bc ── */
     #gameWrapper {
       position: relative;
-      border: 3px solid #FF2D78;
+      border: 3px solid var(--bc);
       border-radius: 4px;
-      box-shadow:
-        0 0 12px #FF2D78,
-        0 0 30px #FF2D78,
-        inset 0 0 12px rgba(255,45,120,0.15);
-      transition: border-color 0.1s;
+      box-shadow: 0 0 14px var(--bc), 0 0 32px var(--bc),
+                  inset 0 0 12px color-mix(in srgb, var(--bc) 20%, transparent);
+      transition: border-color 0.4s, box-shadow 0.4s;
     }
 
     #gameWrapper.flash {
-      animation: borderFlash 0.4s ease-out;
+      animation: borderFlash 0.45s ease-out forwards;
     }
-
     @keyframes borderFlash {
-      0%   { border-color: #FF2D78; box-shadow: 0 0 12px #FF2D78, 0 0 40px #FF2D78, inset 0 0 15px rgba(255,45,120,0.3); }
-      25%  { border-color: #00FFFF; box-shadow: 0 0 20px #00FFFF, 0 0 60px #00FFFF, inset 0 0 20px rgba(0,255,255,0.4); }
-      50%  { border-color: #FF2D78; box-shadow: 0 0 12px #FF2D78, 0 0 40px #FF2D78, inset 0 0 15px rgba(255,45,120,0.3); }
-      75%  { border-color: #00FFFF; box-shadow: 0 0 20px #00FFFF, 0 0 60px #00FFFF, inset 0 0 20px rgba(0,255,255,0.4); }
-      100% { border-color: #FF2D78; box-shadow: 0 0 12px #FF2D78, 0 0 30px #FF2D78, inset 0 0 12px rgba(255,45,120,0.15); }
+      0%  { filter: brightness(1); }
+      20% { filter: brightness(3) saturate(4); }
+      50% { filter: brightness(2); }
+      100%{ filter: brightness(1); }
     }
 
-    #gameWrapper.shake {
-      animation: screenShake 0.25s ease-out;
-    }
-
+    #gameWrapper.shake { animation: screenShake 0.28s ease-out; }
     @keyframes screenShake {
-      0%   { transform: translate(0, 0); }
-      15%  { transform: translate(-6px, 3px); }
-      30%  { transform: translate(6px, -3px); }
-      45%  { transform: translate(-4px, 4px); }
-      60%  { transform: translate(4px, -2px); }
-      75%  { transform: translate(-2px, 2px); }
-      100% { transform: translate(0, 0); }
+      0%  { transform: translate(0,0); }
+      15% { transform: translate(-6px, 3px); }
+      30% { transform: translate(6px,-3px); }
+      45% { transform: translate(-4px, 4px); }
+      60% { transform: translate(4px,-2px); }
+      75% { transform: translate(-2px, 2px); }
+      100%{ transform: translate(0,0); }
+    }
+
+    #gameWrapper.glitch { animation: glitchAnim 0.55s steps(1) forwards; }
+    @keyframes glitchAnim {
+      0%  { filter:none; transform:none; }
+      8%  { filter:hue-rotate(90deg) saturate(4) brightness(1.6); transform:skewX(3deg) translateX(5px); }
+      16% { filter:hue-rotate(200deg) saturate(6) brightness(0.7); transform:skewX(-4deg) translateX(-6px); }
+      28% { filter:hue-rotate(290deg) saturate(5) brightness(1.4); transform:skewX(2deg); }
+      40% { filter:hue-rotate(45deg)  saturate(7) brightness(1.8); transform:translateX(-8px); }
+      55% { filter:none; transform:translateX(-2px) skewX(1deg); }
+      70% { filter:hue-rotate(240deg) saturate(5); transform:skewX(3deg); }
+      85% { filter:brightness(1.5) saturate(2); transform:skewX(-1deg); }
+      100%{ filter:none; transform:none; }
     }
 
     #gameCanvas { display: block; }
 
-    #sidebar {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-      min-width: 130px;
-    }
+    .sidebar { display:flex; flex-direction:column; gap:14px; min-width:130px; }
 
     .panel {
-      border: 2px solid #FF2D78;
-      border-radius: 4px;
-      padding: 10px 14px;
-      background: rgba(0,0,0,0.7);
-      box-shadow: 0 0 10px rgba(255,45,120,0.3);
+      border: 2px solid var(--bc); border-radius: 4px;
+      padding: 10px 14px; background: rgba(0,0,0,0.72);
+      box-shadow: 0 0 8px color-mix(in srgb, var(--bc) 35%, transparent);
     }
-
     .panel-label {
-      font-size: 0.6rem;
-      letter-spacing: 3px;
-      color: #FF2D78;
-      text-transform: uppercase;
-      margin-bottom: 6px;
-      text-shadow: 0 0 6px #FF2D78;
+      font-size: 0.58rem; letter-spacing: 3px; color: var(--bc);
+      text-transform: uppercase; margin-bottom: 5px;
+      text-shadow: 0 0 6px var(--bc);
     }
-
-    .panel-value {
-      font-size: 1.4rem;
-      font-weight: bold;
-      color: #fff;
-      text-shadow: 0 0 8px #00FFFF;
-    }
+    .panel-value { font-size:1.4rem; font-weight:bold; color:#fff; }
 
     #waveNameDisplay {
-      font-size: 0.75rem;
-      letter-spacing: 2px;
-      color: #FFE600;
-      text-shadow: 0 0 8px #FFE600;
-      text-transform: uppercase;
+      font-size:0.72rem; letter-spacing:2px; color:var(--bc);
+      text-shadow:0 0 8px var(--bc); text-transform:uppercase;
     }
+    #nextCanvas { display:block; }
+    .controls { font-size:0.52rem; letter-spacing:1px; color:#666; line-height:1.9; }
+    .controls span { color:var(--bc); }
 
-    #nextCanvas { display: block; }
-
-    #controls {
-      font-size: 0.55rem;
-      letter-spacing: 1px;
-      color: #888;
-      line-height: 1.8;
-    }
-    #controls span { color: #FF2D78; }
-
-    /* Start / Game-over overlay */
+    /* ── Overlay ── */
     #overlay {
-      position: fixed;
-      inset: 0;
-      z-index: 20;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      background: rgba(0,0,0,0.82);
-      gap: 24px;
+      position:fixed; inset:0; z-index:20;
+      display:flex; flex-direction:column; align-items:center;
+      justify-content:center; background:rgba(0,0,0,0.85); gap:22px;
     }
-
     #overlay h1 {
-      font-size: 3rem;
-      letter-spacing: 8px;
-      text-transform: uppercase;
+      font-size:2.8rem; letter-spacing:8px; text-transform:uppercase;
       animation: titlePulse 1.5s ease-in-out infinite alternate;
     }
-
     @keyframes titlePulse {
-      from { text-shadow: 0 0 10px #FF2D78, 0 0 30px #FF2D78; color: #FF2D78; }
-      to   { text-shadow: 0 0 10px #00FFFF, 0 0 40px #00FFFF; color: #00FFFF; }
+      from { text-shadow:0 0 10px #9B5DE5,0 0 28px #9B5DE5; color:#9B5DE5; }
+      to   { text-shadow:0 0 10px #00BBFF,0 0 36px #00BBFF; color:#00BBFF; }
     }
-
-    #overlay p {
-      font-size: 0.9rem;
-      letter-spacing: 4px;
-      color: #aaa;
-      text-align: center;
-    }
-
-    #overlay .score-final {
-      font-size: 1.8rem;
-      color: #FFE600;
-      text-shadow: 0 0 12px #FFE600;
-    }
-
+    #overlay p { font-size:0.85rem; letter-spacing:3px; color:#888; }
+    .score-final { font-size:1.8rem; color:#FFE600; text-shadow:0 0 12px #FFE600; }
     #startBtn {
-      padding: 14px 40px;
-      font-family: inherit;
-      font-size: 1rem;
-      letter-spacing: 4px;
-      text-transform: uppercase;
-      background: transparent;
-      color: #fff;
-      border: 2px solid #00FFFF;
-      border-radius: 4px;
-      cursor: pointer;
-      box-shadow: 0 0 15px #00FFFF, inset 0 0 15px rgba(0,255,255,0.1);
-      transition: all 0.2s;
+      padding:13px 38px; font-family:inherit; font-size:0.9rem;
+      letter-spacing:4px; text-transform:uppercase;
+      background:transparent; color:#fff;
+      border:2px solid #00BBFF; border-radius:4px; cursor:pointer;
+      box-shadow:0 0 14px #00BBFF, inset 0 0 14px rgba(0,187,255,0.1);
+      transition:all 0.2s;
     }
-    #startBtn:hover {
-      background: rgba(0,255,255,0.15);
-      box-shadow: 0 0 30px #00FFFF, inset 0 0 20px rgba(0,255,255,0.2);
-    }
+    #startBtn:hover { background:rgba(0,187,255,0.15); box-shadow:0 0 28px #00BBFF; }
 
+    /* ── Wave announce ── */
     #waveAnnounce {
-      position: fixed;
-      inset: 0;
-      z-index: 15;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      pointer-events: none;
-      opacity: 0;
-      transition: opacity 0.3s;
+      position:fixed; inset:0; z-index:15;
+      display:flex; align-items:center; justify-content:center;
+      pointer-events:none; opacity:0; transition:opacity 0.3s;
     }
-    #waveAnnounce.show { opacity: 1; }
+    #waveAnnounce.show { opacity:1; }
     #waveAnnounce .inner {
-      font-size: 2.5rem;
-      letter-spacing: 6px;
-      text-transform: uppercase;
-      font-weight: bold;
-      text-align: center;
-      text-shadow: 0 0 20px currentColor, 0 0 40px currentColor;
-      animation: waveZoom 0.6s ease-out;
+      font-size:2.4rem; letter-spacing:6px; text-transform:uppercase;
+      font-weight:bold; text-align:center;
+      text-shadow:0 0 20px currentColor, 0 0 40px currentColor;
+      animation:waveZoom 0.6s ease-out;
     }
     @keyframes waveZoom {
-      from { transform: scale(0.4); opacity: 0; }
-      to   { transform: scale(1);   opacity: 1; }
-    }
-
-    /* Level-up glitch effect on gameWrapper */
-    #gameWrapper.glitch {
-      animation: glitchAnim 0.55s steps(1) forwards;
-    }
-    @keyframes glitchAnim {
-      0%   { filter: none; transform: none; }
-      8%   { filter: hue-rotate(90deg) saturate(4) brightness(1.6); transform: skewX(3deg) translateX(5px); }
-      16%  { filter: hue-rotate(200deg) saturate(6) brightness(0.7); transform: skewX(-4deg) translateX(-6px); }
-      24%  { filter: hue-rotate(290deg) saturate(5) brightness(1.4); transform: skewX(2deg) translateX(3px); }
-      32%  { filter: hue-rotate(45deg) saturate(7) brightness(1.8); transform: translateX(-8px); }
-      40%  { filter: hue-rotate(160deg) saturate(3); transform: skewX(-2deg) translateX(4px); }
-      50%  { filter: none; transform: translateX(-2px) skewX(1deg); }
-      60%  { filter: hue-rotate(240deg) saturate(5) brightness(1.3); transform: skewX(3deg); }
-      72%  { filter: hue-rotate(30deg) saturate(4); transform: translateX(3px); }
-      85%  { filter: brightness(1.5) saturate(2); transform: skewX(-1deg); }
-      100% { filter: none; transform: none; }
+      from { transform:scale(0.3); opacity:0; }
+      to   { transform:scale(1);   opacity:1; }
     }
   </style>
 </head>
@@ -252,43 +165,20 @@
   <div id="title">Emoji-Neon-Tris</div>
   <div id="playArea">
 
-    <!-- Left sidebar -->
-    <div id="sidebar">
-      <div class="panel">
-        <div class="panel-label">Score</div>
-        <div class="panel-value" id="scoreDisplay">0</div>
-      </div>
-      <div class="panel">
-        <div class="panel-label">Level</div>
-        <div class="panel-value" id="levelDisplay">1</div>
-      </div>
-      <div class="panel">
-        <div class="panel-label">Lines</div>
-        <div class="panel-value" id="linesDisplay">0</div>
-      </div>
-      <div class="panel">
-        <div class="panel-label">Wave</div>
-        <div id="waveNameDisplay">Fruit Wave</div>
-      </div>
-      <div class="panel">
-        <div class="panel-label">Cycle</div>
-        <div class="panel-value" id="cycleDisplay">1</div>
-      </div>
+    <div class="sidebar">
+      <div class="panel"><div class="panel-label">Score</div><div class="panel-value" id="scoreDisplay">0</div></div>
+      <div class="panel"><div class="panel-label">Level</div><div class="panel-value" id="levelDisplay">1</div></div>
+      <div class="panel"><div class="panel-label">Lines</div><div class="panel-value" id="linesDisplay">0</div></div>
+      <div class="panel"><div class="panel-label">Wave</div><div id="waveNameDisplay">Fruit Wave</div></div>
+      <div class="panel"><div class="panel-label">Cycle</div><div class="panel-value" id="cycleDisplay">1</div></div>
     </div>
 
-    <!-- Game canvas -->
-    <div id="gameWrapper">
-      <canvas id="gameCanvas"></canvas>
-    </div>
+    <div id="gameWrapper"><canvas id="gameCanvas"></canvas></div>
 
-    <!-- Right sidebar -->
-    <div id="sidebar">
-      <div class="panel">
-        <div class="panel-label">Next</div>
-        <canvas id="nextCanvas"></canvas>
-      </div>
-      <div class="panel controls" id="controls">
-        <div><span>←→</span> Move</div>
+    <div class="sidebar">
+      <div class="panel"><div class="panel-label">Next</div><canvas id="nextCanvas"></canvas></div>
+      <div class="panel controls">
+        <div><span>← →</span> Move</div>
         <div><span>↑</span> Rotate</div>
         <div><span>↓</span> Soft drop</div>
         <div><span>Space</span> Hard drop</div>
@@ -300,343 +190,427 @@
   </div>
 </div>
 
-<!-- Wave announce banner -->
 <div id="waveAnnounce"><div class="inner" id="waveAnnounceText"></div></div>
 
-<!-- Start / Game Over overlay -->
 <div id="overlay">
   <h1 id="overlayTitle">Emoji-Neon-Tris</h1>
-  <p id="overlayMsg">Press Start to play</p>
+  <p id="overlayMsg">Pick up the controller.</p>
   <div class="score-final" id="overlayScore" style="display:none"></div>
   <button id="startBtn">Start Game</button>
 </div>
 
 <script>
-// ============================================================
-//  WAVE DEFINITIONS
-// ============================================================
+'use strict';
+
+// ═══════════════════════════════════════════════════════════
+//  WAVE DEFINITIONS  (order: Fruit → Animals → Meats)
+// ═══════════════════════════════════════════════════════════
 const WAVES = [
   {
-    name:   'FRUIT WAVE',
-    emojis: ['🍒', '🍇', '🍌'],
-    colors: ['#FF2D78', '#BF5FFF', '#FFE600'],
-    bgTint: 'rgba(30,0,40,',
+    name:        'FRUIT WAVE',
+    emojis:      ['🍒','🍇','🍌'],
+    colors:      ['#FF2D78','#BF5FFF','#FFE600'],
+    borderColor: '#9B5DE5',   // Purple
+    bgTint:      'rgba(28,0,38,',
   },
   {
-    name:   'MEAT WAVE',
-    emojis: ['🥩', '🍗', '🥓'],
-    colors: ['#FF3030', '#FF8C00', '#FF1493'],
-    bgTint: 'rgba(40,0,0,',
+    name:        'ANIMAL WAVE',
+    emojis:      ['🐱','🐶','🐦'],
+    colors:      ['#00FFFF','#00FF88','#4488FF'],
+    borderColor: '#00BBFF',   // Blue
+    bgTint:      'rgba(0,10,30,',
   },
   {
-    name:   'ANIMAL WAVE',
-    emojis: ['🐱', '🐶', '🐦'],
-    colors: ['#00FFFF', '#00FF88', '#4488FF'],
-    bgTint: 'rgba(0,10,30,',
+    name:        'MEAT WAVE',
+    emojis:      ['🥩','🍗','🥓'],
+    colors:      ['#FF3030','#FF8C00','#FF1493'],
+    borderColor: '#FF00FF',   // Fuchsia
+    bgTint:      'rgba(38,0,0,',
   },
 ];
 
-// ============================================================
+// ═══════════════════════════════════════════════════════════
+//  SPRITE SHEET MAPPING  (4×4 sheet, 256 px per icon)
+//  Each of the 7 tetromino types maps to a unique cell.
+//  type: 0=I  1=O  2=T  3=S  4=Z  5=J  6=L
+// ═══════════════════════════════════════════════════════════
+const PIECE_SPRITE_MAP = [
+  { row:0, col:0 },  // I
+  { row:0, col:1 },  // O
+  { row:0, col:2 },  // T
+  { row:0, col:3 },  // S
+  { row:1, col:0 },  // Z
+  { row:1, col:1 },  // J
+  { row:1, col:2 },  // L
+];
+
+// ═══════════════════════════════════════════════════════════
 //  TETROMINO DEFINITIONS
-// ============================================================
+// ═══════════════════════════════════════════════════════════
 const TETROMINOES = [
-  // I
-  { cells: [[0,1],[1,1],[2,1],[3,1]], emojiIdx: 0 },
-  // O
-  { cells: [[0,0],[1,0],[0,1],[1,1]], emojiIdx: 1 },
-  // T
-  { cells: [[1,0],[0,1],[1,1],[2,1]], emojiIdx: 2 },
-  // S
-  { cells: [[1,0],[2,0],[0,1],[1,1]], emojiIdx: 0 },
-  // Z
-  { cells: [[0,0],[1,0],[1,1],[2,1]], emojiIdx: 1 },
-  // J
-  { cells: [[0,0],[0,1],[1,1],[2,1]], emojiIdx: 2 },
-  // L
-  { cells: [[2,0],[0,1],[1,1],[2,1]], emojiIdx: 0 },
+  { cells:[[0,1],[1,1],[2,1],[3,1]], type:0 }, // I
+  { cells:[[0,0],[1,0],[0,1],[1,1]], type:1 }, // O
+  { cells:[[1,0],[0,1],[1,1],[2,1]], type:2 }, // T
+  { cells:[[1,0],[2,0],[0,1],[1,1]], type:3 }, // S
+  { cells:[[0,0],[1,0],[1,1],[2,1]], type:4 }, // Z
+  { cells:[[0,0],[0,1],[1,1],[2,1]], type:5 }, // J
+  { cells:[[2,0],[0,1],[1,1],[2,1]], type:6 }, // L
 ];
 
-// ============================================================
+// ═══════════════════════════════════════════════════════════
 //  CONSTANTS
-// ============================================================
-const COLS        = 10;
-const ROWS        = 20;
-const CELL        = 32;
-const LINES_PER_WAVE    = 10;
-const LINES_PER_LEVEL   = 5;
-const SPRITE_SIZE       = 256;  // each icon is 256×256px within the sheet
-const SPRITE_SHEET_COLS = 4;    // 4-column sprite sheet
-const SPRITE_SHEET_ROWS = 4;    // 4-row sprite sheet
+// ═══════════════════════════════════════════════════════════
+const COLS           = 10;
+const ROWS           = 20;
+const CELL           = 32;
+const SPRITE_SIZE    = 256;   // px per icon on the sheet
+const SHEET_COLS     = 4;
 
-// ============================================================
+// Wave thresholds: lines needed to enter wave 1, 2, 3
+const WAVE_THRESHOLDS = [0, 10, 25]; // lines[i] >= threshold enters wave i
+const CYCLE_LENGTH    = 45;          // lines per full 3-wave cycle
+const SPEED_FACTOR    = 0.80;        // multiply drop interval per wave transition
+const BASE_INTERVAL   = 820;         // ms, starting drop speed
+const MIN_INTERVAL    = 55;          // ms, fastest possible
+
+// ═══════════════════════════════════════════════════════════
 //  CANVAS SETUP
-// ============================================================
-const bgCanvas      = document.getElementById('bgCanvas');
-const bgCtx         = bgCanvas.getContext('2d');
-const particleCanvas= document.getElementById('particleCanvas');
-const pCtx          = particleCanvas.getContext('2d');
-const gameCanvas    = document.getElementById('gameCanvas');
-const gCtx          = gameCanvas.getContext('2d');
-const nextCanvas    = document.getElementById('nextCanvas');
-const nCtx          = nextCanvas.getContext('2d');
-const gameWrapper   = document.getElementById('gameWrapper');
+// ═══════════════════════════════════════════════════════════
+const bgCanvas       = document.getElementById('bgCanvas');
+const bgCtx          = bgCanvas.getContext('2d');
+const particleCanvas = document.getElementById('particleCanvas');
+const pCtx           = particleCanvas.getContext('2d');
+const gameCanvas     = document.getElementById('gameCanvas');
+const gCtx           = gameCanvas.getContext('2d');
+const nextCanvas     = document.getElementById('nextCanvas');
+const nCtx           = nextCanvas.getContext('2d');
+const gameWrapper    = document.getElementById('gameWrapper');
 
 gameCanvas.width  = COLS * CELL;
 gameCanvas.height = ROWS * CELL;
 nextCanvas.width  = 4 * CELL;
 nextCanvas.height = 4 * CELL;
 
+// Off-screen canvas for particle batching — one blit per frame to pCtx
+let pOffscreen = new OffscreenCanvas
+  ? new OffscreenCanvas(window.innerWidth, window.innerHeight)
+  : (() => { const c=document.createElement('canvas'); c.width=window.innerWidth; c.height=window.innerHeight; return c; })();
+let pOff = pOffscreen.getContext('2d');
+
 function resizeCanvases() {
-  bgCanvas.width      = window.innerWidth;
-  bgCanvas.height     = window.innerHeight;
+  bgCanvas.width  = window.innerWidth;
+  bgCanvas.height = window.innerHeight;
   particleCanvas.width  = window.innerWidth;
   particleCanvas.height = window.innerHeight;
+  pOffscreen.width  = window.innerWidth;
+  pOffscreen.height = window.innerHeight;
 }
 resizeCanvases();
 window.addEventListener('resize', resizeCanvases);
 
-// ============================================================
-//  SPRITE SHEET LOADING
-//  Actual filenames use spaces; encoded as %20 for fetch safety.
-//  Paths are relative to the server root at /Documents/aislop/.
-// ============================================================
+// ═══════════════════════════════════════════════════════════
+//  SPRITE LOADING
+// ═══════════════════════════════════════════════════════════
+const SPRITE_BASE = 'https://raw.githubusercontent.com/Hackerpronerd21/aislop/main/sprites';
 
-/**
- * Loads an image from the given URL.
- * Resolves to the HTMLImageElement when ready, or null on error.
- * @param {string} url
- * @returns {Promise<HTMLImageElement|null>}
- */
 function loadSprite(url) {
   return new Promise(resolve => {
     const img = new Image();
     img.onload  = () => resolve(img);
-    img.onerror = () => {
-      console.warn(`[Emoji-Neon-Tris] Could not load sprite: ${url}. Falling back to emoji rendering.`);
-      resolve(null);
-    };
+    img.onerror = () => { console.warn(`Sprite not loaded: ${url}`); resolve(null); };
     img.src = url;
   });
 }
 
 /**
- * Returns the source rectangle for a sprite inside a 4×4 sheet.
- * Each icon occupies SPRITE_SIZE × SPRITE_SIZE pixels.
- *
- * @param {HTMLImageElement} sheet  - The loaded sprite sheet image.
- * @param {number}           row   - Zero-based row index (0–3).
- * @param {number}           col   - Zero-based column index (0–3).
- * @returns {{ image: HTMLImageElement, sx: number, sy: number, sw: number, sh: number }}
+ * Returns the source rect for a specific cell on a 4×4 sprite sheet.
+ * @returns {{ image, sx, sy, sw, sh }}
  */
 function getSprite(sheet, row, col) {
-  return {
-    image: sheet,
-    sx: col * SPRITE_SIZE,
-    sy: row * SPRITE_SIZE,
-    sw: SPRITE_SIZE,
-    sh: SPRITE_SIZE,
-  };
+  return { image:sheet, sx:col*SPRITE_SIZE, sy:row*SPRITE_SIZE, sw:SPRITE_SIZE, sh:SPRITE_SIZE };
 }
 
-// Sprite sheets — loaded from GitHub (Hackerpronerd21/aislop).
-// raw.githubusercontent.com serves files directly; spaces encoded as %20.
-const SPRITE_BASE = 'https://raw.githubusercontent.com/Hackerpronerd21/aislop/main/sprites';
+let fruitSheet   = null;
+let animalsSheet = null;
+let meatSheet    = null;
+let activeSheet  = null;
 
-let fruitSheet   = null;  // tetris neon fruit.png → Wave 0 (Fruit)
-let meatSheet    = null;  // neon meat.png          → Wave 1 (Meat)
-let animalsSheet = null;  // neon animals.png        → Wave 2 (Animals)
-
-// Active texture source — swapped per wave transition.
-// null means "use emoji fallback".
-let activeSheet = null;
-
-// All three sheets load in parallel; emoji fallback renders until they resolve.
 Promise.all([
   loadSprite(`${SPRITE_BASE}/tetris%20neon%20fruit.png`),
-  loadSprite(`${SPRITE_BASE}/neon%20meat.png`),
   loadSprite(`${SPRITE_BASE}/neon%20animals.png`),
-]).then(([fruit, meat, animals]) => {
-  fruitSheet   = fruit;
-  meatSheet    = meat;
-  animalsSheet = animals;
-  // Sync active sheet to wherever the game currently is.
-  activeSheet = sheetForWave(currentWave);
+  loadSprite(`${SPRITE_BASE}/neon%20meat.png`),
+]).then(([f, a, m]) => {
+  fruitSheet   = f;
+  animalsSheet = a;
+  meatSheet    = m;
+  activeSheet  = sheetForWaveIdx(0);
 });
 
-/** Returns the correct sprite sheet for a given wave index (wraps via modulo). */
-function sheetForWave(waveIdx) {
-  const idx = waveIdx % WAVES.length;
-  if (idx === 0) return fruitSheet;
-  if (idx === 1) return meatSheet;
-  return animalsSheet;
+function sheetForWaveIdx(waveIdx) {
+  const i = waveIdx % WAVES.length;
+  return [fruitSheet, animalsSheet, meatSheet][i];
 }
 
-// ============================================================
-//  AUDIO ENGINE  (procedural dubstep)
-// ============================================================
-let audioCtx = null;
-let analyser  = null;
-let masterGain= null;
-let muted     = false;
-let audioStarted = false;
+// ═══════════════════════════════════════════════════════════
+//  PARTICLE POOL  (max 30 slots, no allocation during gameplay)
+// ═══════════════════════════════════════════════════════════
+const POOL_SIZE = 30;
+const pool = Array.from({ length: POOL_SIZE }, () => ({
+  active:false, x:0, y:0, vx:0, vy:0,
+  life:0, decay:0, color:'#fff', size:8,
+  useSprite:false, spriteRow:0, spriteCol:0,
+}));
 
-// Scheduler state
-let nextNoteTime   = 0;
-let currentBeat    = 0;
-const BPM          = 140;
-const BEAT_TIME    = 60 / BPM;
-const SCHEDULE_AHEAD = 0.1;
-let schedulerTimer = null;
+function acquireParticle() {
+  for (let i = 0; i < POOL_SIZE; i++) {
+    if (!pool[i].active) return pool[i];
+  }
+  return null; // pool exhausted — skip, no allocation
+}
+
+function spawnExplosionAt(screenX, screenY) {
+  const w  = waveData();
+  const sp = PIECE_SPRITE_MAP[Math.floor(Math.random() * PIECE_SPRITE_MAP.length)];
+
+  for (let i = 0; i < 8; i++) {   // up to 8 per cell, 30-slot pool caps total
+    const p = acquireParticle();
+    if (!p) break;
+    const angle = (Math.PI * 2 * i / 8) + (Math.random() - 0.5) * 0.7;
+    const speed = 2.5 + Math.random() * 5;
+    p.active   = true;
+    p.x        = screenX;
+    p.y        = screenY;
+    p.vx       = Math.cos(angle) * speed;
+    p.vy       = Math.sin(angle) * speed;
+    p.life     = 1;
+    // decay chosen so life reaches 0 in exactly 600 ms at 60 fps (36 frames)
+    p.decay    = 1 / 36;
+    p.color    = w.colors[Math.floor(Math.random() * w.colors.length)];
+    p.size     = 6 + Math.random() * 10;
+    p.useSprite= activeSheet !== null;
+    p.spriteRow= sp.row;
+    p.spriteCol= sp.col;
+  }
+}
+
+function updatePool(dt) {
+  const inc = dt * 60; // scale decay to actual frame time
+  for (let i = 0; i < POOL_SIZE; i++) {
+    const p = pool[i];
+    if (!p.active) continue;
+    p.x    += p.vx * inc;
+    p.y    += p.vy * inc;
+    p.vy   += 0.12 * inc;  // gravity
+    p.life -= p.decay * inc;
+    if (p.life <= 0) p.active = false;
+  }
+}
+
+function renderPool() {
+  // Draw to off-screen canvas, then blit once
+  pOff.clearRect(0, 0, pOffscreen.width, pOffscreen.height);
+
+  for (let i = 0; i < POOL_SIZE; i++) {
+    const p = pool[i];
+    if (!p.active) continue;
+    pOff.save();
+    pOff.globalAlpha = Math.max(0, p.life);
+
+    if (p.useSprite && activeSheet && activeSheet.complete) {
+      pOff.shadowBlur  = 14;
+      pOff.shadowColor = p.color;
+      pOff.drawImage(
+        activeSheet,
+        p.spriteCol * SPRITE_SIZE, p.spriteRow * SPRITE_SIZE, SPRITE_SIZE, SPRITE_SIZE,
+        p.x - p.size / 2, p.y - p.size / 2, p.size, p.size,
+      );
+    } else {
+      pOff.shadowBlur  = 16;
+      pOff.shadowColor = p.color;
+      pOff.fillStyle   = p.color;
+      pOff.beginPath();
+      pOff.arc(p.x, p.y, p.size / 2, 0, Math.PI * 2);
+      pOff.fill();
+    }
+    pOff.restore();
+  }
+
+  // Single blit to visible canvas
+  pCtx.clearRect(0, 0, particleCanvas.width, particleCanvas.height);
+  pCtx.drawImage(pOffscreen, 0, 0);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  AUDIO ENGINE  — 3-dot bass pulse @ 140 BPM
+// ═══════════════════════════════════════════════════════════
+let audioCtx = null, analyser = null, masterGain = null;
+let muted = false, audioStarted = false;
+let nextNoteTime = 0, currentBeat16 = 0, schedulerTimer = null;
+
+const BPM           = 140;
+const BEAT_TIME     = 60 / BPM;             // quarter note = ~0.4286 s
+const NOTE_16TH     = BEAT_TIME / 4;        // 16th note   = ~0.1071 s
+const SCHED_AHEAD   = 0.12;
+
+// 3-dot pattern on 16th-note grid (repeats every 4 steps)
+//   1 = dot stab, 0 = rest
+//   Every 3rd dot triggers the visual sync effect
+const DOT_PATTERN = [1, 1, 1, 0];
+let dotFired = 0; // count of dots triggered this game
 
 function initAudio() {
   if (audioStarted) return;
   audioStarted = true;
-
-  audioCtx   = new (window.AudioContext || window.webkitAudioContext)();
-  analyser   = audioCtx.createAnalyser();
+  audioCtx  = new (window.AudioContext || window.webkitAudioContext)();
+  analyser  = audioCtx.createAnalyser();
   analyser.fftSize = 512;
   masterGain = audioCtx.createGain();
   masterGain.gain.value = 0.55;
-
   masterGain.connect(analyser);
   analyser.connect(audioCtx.destination);
-
   nextNoteTime = audioCtx.currentTime + 0.1;
-  schedulerTimer = setInterval(scheduler, 25);
+  schedulerTimer = setInterval(runScheduler, 22);
 }
 
-function scheduler() {
-  while (nextNoteTime < audioCtx.currentTime + SCHEDULE_AHEAD) {
-    scheduleNotes(currentBeat, nextNoteTime);
-    currentBeat = (currentBeat + 1) % 16;
-    nextNoteTime += BEAT_TIME / 2; // 16th notes
+function runScheduler() {
+  while (nextNoteTime < audioCtx.currentTime + SCHED_AHEAD) {
+    scheduleBeat(currentBeat16, nextNoteTime);
+    currentBeat16 = (currentBeat16 + 1) % 16;
+    nextNoteTime += NOTE_16TH;
   }
 }
 
-function scheduleNotes(beat, t) {
-  const wave = waveData();
+function scheduleBeat(beat, t) {
+  const step = beat % 4;
 
-  // Kick drum on beats 0, 4, 8, 12 (quarter notes in 16th-note grid)
-  if (beat === 0 || beat === 4 || beat === 6 || beat === 8 || beat === 12) {
-    playKick(t, beat === 0 || beat === 8 ? 0.9 : 0.6);
+  // 3-dot bass stab
+  if (DOT_PATTERN[step]) {
+    playDot(t);
+    dotFired++;
+    // Every 3rd dot: sync a visual beat-hit with audio timing
+    if (dotFired % 3 === 0) {
+      const msUntil = Math.max(0, (t - audioCtx.currentTime) * 1000);
+      setTimeout(triggerBeatHit, msUntil);
+    }
   }
-  // Snare on beats 4, 12 (2 and 4)
-  if (beat === 4 || beat === 12) {
-    playSnare(t);
-  }
-  // Open hi-hat every 2 beats
+
+  // Kick on every quarter note (steps 0, 4, 8, 12 of 16-step bar)
+  if (beat % 4 === 0) playKick(t, beat === 0 ? 0.9 : 0.65);
+
+  // Snare on beat 4 and 12 (2 and 4 of bar)
+  if (beat === 4 || beat === 12) playSnare(t);
+
+  // Hi-hat every even 16th
+  if (beat % 2 === 0) playHihat(t, beat % 4 === 0);
+
+  // Wobble bass every two 16ths
   if (beat % 2 === 0) {
-    playHihat(t, beat % 4 === 0 ? 'open' : 'closed');
-  }
-  // Wobble bass — plays every beat, filter LFO synced
-  if (beat % 2 === 0) {
-    const note = [55, 55, 58, 55, 55, 51, 55, 55][Math.floor(beat / 2)]; // A1 bassline
-    playWobble(t, note, BEAT_TIME / 2, wave.colors[beat % 3]);
+    const notes = [43,43,46,43,43,39,43,43]; // G2 dubstep line
+    playWobble(t, notes[Math.floor(beat / 2) % 8], NOTE_16TH * 2);
   }
 }
 
-function noteFreq(midi) {
-  return 440 * Math.pow(2, (midi - 69) / 12);
+function noteFreq(midi) { return 440 * Math.pow(2, (midi - 69) / 12); }
+
+function playDot(t) {
+  const osc  = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type   = 'square';
+  osc.frequency.setValueAtTime(110, t);
+  osc.frequency.exponentialRampToValueAtTime(55, t + 0.06);
+  gain.gain.setValueAtTime(0.45, t);
+  gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+  osc.connect(gain); gain.connect(masterGain);
+  osc.start(t); osc.stop(t + 0.1);
 }
 
 function playKick(t, vol) {
   const osc  = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
-  osc.connect(gain); gain.connect(masterGain);
   osc.frequency.setValueAtTime(160, t);
-  osc.frequency.exponentialRampToValueAtTime(30, t + 0.08);
+  osc.frequency.exponentialRampToValueAtTime(28, t + 0.08);
   gain.gain.setValueAtTime(vol, t);
-  gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+  gain.gain.exponentialRampToValueAtTime(0.001, t + 0.26);
+  osc.connect(gain); gain.connect(masterGain);
   osc.start(t); osc.stop(t + 0.3);
 }
 
 function playSnare(t) {
-  const bufferSize = audioCtx.sampleRate * 0.15;
-  const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-  const data   = buffer.getChannelData(0);
-  for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1);
-  const noise  = audioCtx.createBufferSource();
-  noise.buffer = buffer;
-  const filter = audioCtx.createBiquadFilter();
-  filter.type  = 'bandpass';
-  filter.frequency.value = 2200;
-  filter.Q.value = 0.7;
-  const gain   = audioCtx.createGain();
-  gain.gain.setValueAtTime(0.45, t);
-  gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
-  noise.connect(filter); filter.connect(gain); gain.connect(masterGain);
-  noise.start(t); noise.stop(t + 0.2);
-}
-
-function playHihat(t, type) {
-  const bufferSize = audioCtx.sampleRate * 0.05;
-  const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-  const data   = buffer.getChannelData(0);
-  for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1);
-  const noise  = audioCtx.createBufferSource();
-  noise.buffer = buffer;
-  const filter = audioCtx.createBiquadFilter();
-  filter.type  = 'highpass';
-  filter.frequency.value = type === 'open' ? 8000 : 12000;
-  const gain   = audioCtx.createGain();
-  const dur    = type === 'open' ? 0.09 : 0.03;
-  gain.gain.setValueAtTime(0.25, t);
-  gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
-  noise.connect(filter); filter.connect(gain); gain.connect(masterGain);
-  noise.start(t); noise.stop(t + dur + 0.01);
-}
-
-function playWobble(t, midiNote, duration, _color) {
-  const freq   = noteFreq(midiNote);
-  const osc    = audioCtx.createOscillator();
-  osc.type     = 'sawtooth';
-  osc.frequency.value = freq;
-
-  const filter = audioCtx.createBiquadFilter();
-  filter.type  = 'lowpass';
-  filter.Q.value = 8;
-
-  // Wobble: quick filter sweep up then down
-  filter.frequency.setValueAtTime(200,  t);
-  filter.frequency.linearRampToValueAtTime(2400, t + duration * 0.3);
-  filter.frequency.linearRampToValueAtTime(300,  t + duration * 0.7);
-  filter.frequency.linearRampToValueAtTime(200,  t + duration);
-
+  const sz   = audioCtx.sampleRate * 0.15 | 0;
+  const buf  = audioCtx.createBuffer(1, sz, audioCtx.sampleRate);
+  const d    = buf.getChannelData(0);
+  for (let i = 0; i < sz; i++) d[i] = Math.random() * 2 - 1;
+  const src  = audioCtx.createBufferSource();
+  src.buffer = buf;
+  const flt  = audioCtx.createBiquadFilter();
+  flt.type   = 'bandpass'; flt.frequency.value = 2400; flt.Q.value = 0.8;
   const gain = audioCtx.createGain();
-  gain.gain.setValueAtTime(0.4, t);
-  gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
+  gain.gain.setValueAtTime(0.42, t);
+  gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+  src.connect(flt); flt.connect(gain); gain.connect(masterGain);
+  src.start(t); src.stop(t + 0.18);
+}
 
-  osc.connect(filter); filter.connect(gain); gain.connect(masterGain);
-  osc.start(t); osc.stop(t + duration + 0.01);
+function playHihat(t, open) {
+  const sz   = audioCtx.sampleRate * 0.06 | 0;
+  const buf  = audioCtx.createBuffer(1, sz, audioCtx.sampleRate);
+  const d    = buf.getChannelData(0);
+  for (let i = 0; i < sz; i++) d[i] = Math.random() * 2 - 1;
+  const src  = audioCtx.createBufferSource();
+  src.buffer = buf;
+  const flt  = audioCtx.createBiquadFilter();
+  flt.type   = 'highpass'; flt.frequency.value = open ? 7000 : 11000;
+  const dur  = open ? 0.1 : 0.03;
+  const gain = audioCtx.createGain();
+  gain.gain.setValueAtTime(0.22, t);
+  gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  src.connect(flt); flt.connect(gain); gain.connect(masterGain);
+  src.start(t); src.stop(t + dur + 0.01);
+}
+
+function playWobble(t, midi, dur) {
+  const osc  = audioCtx.createOscillator();
+  osc.type   = 'sawtooth';
+  osc.frequency.value = noteFreq(midi);
+  const flt  = audioCtx.createBiquadFilter();
+  flt.type   = 'lowpass'; flt.Q.value = 9;
+  flt.frequency.setValueAtTime(180, t);
+  flt.frequency.linearRampToValueAtTime(2600, t + dur * 0.3);
+  flt.frequency.linearRampToValueAtTime(280,  t + dur * 0.7);
+  flt.frequency.linearRampToValueAtTime(180,  t + dur);
+  const gain = audioCtx.createGain();
+  gain.gain.setValueAtTime(0.38, t);
+  gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  osc.connect(flt); flt.connect(gain); gain.connect(masterGain);
+  osc.start(t); osc.stop(t + dur + 0.01);
 }
 
 function playLineClear() {
   if (!audioCtx) return;
-  const t   = audioCtx.currentTime;
-  const osc = audioCtx.createOscillator();
-  osc.type  = 'square';
-  const gain= audioCtx.createGain();
-  osc.frequency.setValueAtTime(880, t);
-  osc.frequency.exponentialRampToValueAtTime(1760, t + 0.08);
-  osc.frequency.exponentialRampToValueAtTime(3520, t + 0.16);
-  gain.gain.setValueAtTime(0.3, t);
-  gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
-  osc.connect(gain); gain.connect(masterGain);
-  osc.start(t); osc.stop(t + 0.35);
+  const t = audioCtx.currentTime;
+  const o = audioCtx.createOscillator();
+  o.type  = 'square';
+  const g = audioCtx.createGain();
+  o.frequency.setValueAtTime(880, t);
+  o.frequency.exponentialRampToValueAtTime(3520, t + 0.18);
+  g.gain.setValueAtTime(0.28, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+  o.connect(g); g.connect(masterGain);
+  o.start(t); o.stop(t + 0.32);
 }
 
 function playLand() {
   if (!audioCtx) return;
-  const t   = audioCtx.currentTime;
-  const osc = audioCtx.createOscillator();
-  osc.type  = 'sawtooth';
-  const gain= audioCtx.createGain();
-  osc.frequency.setValueAtTime(120, t);
-  osc.frequency.exponentialRampToValueAtTime(60, t + 0.07);
-  gain.gain.setValueAtTime(0.25, t);
-  gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
-  osc.connect(gain); gain.connect(masterGain);
-  osc.start(t); osc.stop(t + 0.15);
+  const t = audioCtx.currentTime;
+  const o = audioCtx.createOscillator();
+  o.type  = 'sawtooth';
+  const g = audioCtx.createGain();
+  o.frequency.setValueAtTime(120, t);
+  o.frequency.exponentialRampToValueAtTime(55, t + 0.07);
+  g.gain.setValueAtTime(0.22, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+  o.connect(g); g.connect(masterGain);
+  o.start(t); o.stop(t + 0.15);
 }
 
 function setMuted(val) {
@@ -644,661 +618,502 @@ function setMuted(val) {
   if (masterGain) masterGain.gain.value = muted ? 0 : 0.55;
 }
 
-// ============================================================
+// ═══════════════════════════════════════════════════════════
 //  GAME STATE
-// ============================================================
-let board       = [];
-let currentPiece= null;
-let nextPiece   = null;
-let score       = 0;
-let lines       = 0;
-let level       = 1;
-let currentWave = 0;
-let gameRunning = false;
-let paused      = false;
-let dropTimer   = 0;
-let lastTime    = 0;
-let gameOver    = false;
-let glitchFrames = 0;        // counts down render frames during the glitch effect
-const GLITCH_RENDER_FRAMES = 18;
+// ═══════════════════════════════════════════════════════════
+let board        = [];
+let currentPiece = null;
+let nextPiece    = null;
+let score        = 0;
+let lines        = 0;
+let level        = 1;
+let currentWave  = 0;      // unbounded wave counter
+let gameRunning  = false;
+let paused       = false;
+let dropTimer    = 0;
+let lastTime     = 0;
+let gameOver     = false;
+let glitchFrames = 0;
+const GLITCH_FRAMES = 18;
 
-/** Current cycle number (0-based). Increases every time all 3 waves complete. */
-function currentCycle() {
-  return Math.floor(currentWave / WAVES.length);
+// ── Wave helpers ───────────────────────────────────────────
+function waveData()    { return WAVES[currentWave % WAVES.length]; }
+function currentCycle(){ return Math.floor(currentWave / WAVES.length); }
+
+/**
+ * Compute the unbounded wave index from total lines cleared.
+ * Cycle = 45 lines (thresholds: 0, 10, 25 within each cycle).
+ */
+function waveIndexFromLines(totalLines) {
+  const cycle         = Math.floor(totalLines / CYCLE_LENGTH);
+  const linesInCycle  = totalLines % CYCLE_LENGTH;
+  let waveInCycle = 0;
+  if (linesInCycle >= WAVE_THRESHOLDS[2]) waveInCycle = 2;
+  else if (linesInCycle >= WAVE_THRESHOLDS[1]) waveInCycle = 1;
+  return cycle * WAVES.length + waveInCycle;
 }
 
-/** Current wave data, cycling through WAVES infinitely. */
-function waveData() {
-  return WAVES[currentWave % WAVES.length];
-}
-
+/**
+ * Drop interval in ms.
+ * Each wave transition multiplies by SPEED_FACTOR (20% faster).
+ */
 function dropInterval() {
-  // Each cycle shaves 60 ms off the drop speed, floored at 55 ms.
-  return Math.max(55, 800 - (level - 1) * 70 - currentCycle() * 60);
+  return Math.max(MIN_INTERVAL, BASE_INTERVAL * Math.pow(SPEED_FACTOR, currentWave));
 }
 
+// ── Board init ─────────────────────────────────────────────
 function initBoard() {
   board = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
 }
 
 function randomPiece() {
   const def = TETROMINOES[Math.floor(Math.random() * TETROMINOES.length)];
-  return {
-    cells:    def.cells.map(([x,y]) => [x,y]),
-    emojiIdx: def.emojiIdx,
-    x: 3,
-    y: 0,
-  };
+  return { cells: def.cells.map(c => [c[0], c[1]]), type: def.type, x: 3, y: 0 };
 }
 
 function resetGame() {
   initBoard();
-  score       = 0;
-  lines       = 0;
-  level       = 1;
-  currentWave = 0;
-  gameOver    = false;
-  dropTimer   = 0;
+  score        = 0;
+  lines        = 0;
+  level        = 1;
+  currentWave  = 0;
+  gameOver     = false;
+  dropTimer    = 0;
   glitchFrames = 0;
-  // Start with the fruit sheet (falls back to emoji if not yet loaded).
-  activeSheet = sheetForWave(0);
-  currentPiece= randomPiece();
-  nextPiece   = randomPiece();
+  dotFired     = 0;
+  activeSheet  = sheetForWaveIdx(0);
+  applyWaveStyle(WAVES[0]);
+  currentPiece = randomPiece();
+  nextPiece    = randomPiece();
   updateHUD();
 }
 
-// ============================================================
+// ═══════════════════════════════════════════════════════════
 //  COLLISION / MOVEMENT
-// ============================================================
-function pieceCells(piece) {
+// ═══════════════════════════════════════════════════════════
+function absCells(piece) {
   return piece.cells.map(([x,y]) => [x + piece.x, y + piece.y]);
 }
 
 function collides(piece, dx, dy, cells) {
-  const toCheck = cells || pieceCells(piece);
-  for (const [cx, cy] of toCheck) {
-    const nx = cx + dx, ny = cy + dy;
+  for (const [cx,cy] of (cells || absCells(piece))) {
+    const nx = cx+dx, ny = cy+dy;
     if (nx < 0 || nx >= COLS || ny >= ROWS) return true;
     if (ny >= 0 && board[ny][nx] !== null) return true;
   }
   return false;
 }
 
-function rotateCells(cells) {
-  // Rotate 90° clockwise around bounding box center
-  const xs = cells.map(c => c[0]);
-  const ys = cells.map(c => c[1]);
-  const minX = Math.min(...xs), maxX = Math.max(...xs);
-  const minY = Math.min(...ys), maxY = Math.max(...ys);
-  return cells.map(([x,y]) => [maxY - y + minX, x - minX + minY]);
+function rotateCW(cells) {
+  const xs = cells.map(c=>c[0]), ys = cells.map(c=>c[1]);
+  const minX=Math.min(...xs), maxY=Math.max(...ys), minY=Math.min(...ys);
+  return cells.map(([x,y]) => [maxY-y+minX, x-minX+minY]);
 }
 
 function tryRotate() {
   if (!currentPiece || !gameRunning || paused) return;
-  const rotated = rotateCells(currentPiece.cells);
-  const test = { ...currentPiece, cells: rotated };
-  const abs = pieceCells(test);
-  if (!collides(test, 0, 0, abs)) {
-    currentPiece.cells = rotated;
-    return;
-  }
-  // Wall kicks: try ±1 x
-  for (const kick of [-1, 1, -2, 2]) {
+  const rotated = rotateCW(currentPiece.cells);
+  const test    = { ...currentPiece, cells: rotated };
+  const abs     = absCells(test);
+  if (!collides(test, 0, 0, abs)) { currentPiece.cells = rotated; return; }
+  for (const kick of [-1,1,-2,2]) {
     if (!collides(test, kick, 0, abs)) {
       currentPiece.cells = rotated;
-      currentPiece.x += kick;
+      currentPiece.x    += kick;
       return;
     }
   }
 }
 
-function moveLeft()  { if (!collides(currentPiece, -1, 0)) currentPiece.x--; }
-function moveRight() { if (!collides(currentPiece,  1, 0)) currentPiece.x++; }
+function moveLeft()  { if (!collides(currentPiece,-1,0)) currentPiece.x--; }
+function moveRight() { if (!collides(currentPiece, 1,0)) currentPiece.x++; }
 
 function softDrop() {
-  if (!collides(currentPiece, 0, 1)) { currentPiece.y++; score += 1; }
+  if (!collides(currentPiece,0,1)) { currentPiece.y++; score++; }
   else lockPiece();
 }
 
 function hardDrop() {
-  let dropped = 0;
-  while (!collides(currentPiece, 0, 1)) { currentPiece.y++; dropped++; }
-  score += dropped * 2;
+  let n = 0;
+  while (!collides(currentPiece,0,1)) { currentPiece.y++; n++; }
+  score += n * 2;
   lockPiece();
 }
 
 function lockPiece() {
-  // Write piece to board
-  for (const [cx, cy] of pieceCells(currentPiece)) {
+  for (const [cx,cy] of absCells(currentPiece)) {
     if (cy < 0) { triggerGameOver(); return; }
-    board[cy][cx] = { wave: currentWave, emojiIdx: currentPiece.emojiIdx };
+    board[cy][cx] = { wave: currentWave, type: currentPiece.type };
   }
   playLand();
   triggerShake();
   clearLines();
   currentPiece = nextPiece;
   nextPiece    = randomPiece();
-  if (collides(currentPiece, 0, 0)) triggerGameOver();
+  if (collides(currentPiece,0,0)) triggerGameOver();
 }
 
 function clearLines() {
   const cleared = [];
-  for (let r = ROWS - 1; r >= 0; r--) {
-    if (board[r].every(cell => cell !== null)) cleared.push(r);
+  for (let r = ROWS-1; r >= 0; r--) {
+    if (board[r].every(c => c !== null)) cleared.push(r);
   }
-  if (cleared.length === 0) return;
+  if (!cleared.length) return;
 
-  // Score — cycle multiplier so later cycles are worth more
-  const pts = [0, 100, 300, 500, 800][Math.min(cleared.length, 4)] * level * (currentCycle() + 1);
+  const pts = [0,100,300,500,800][Math.min(cleared.length,4)] * level * (currentCycle()+1);
   score += pts;
   lines += cleared.length;
-  level  = Math.floor(lines / LINES_PER_LEVEL) + 1;
+  level  = Math.floor(lines / 5) + 1;
 
-  // Remove cleared rows
-  const clearedSet = new Set(cleared);
-  board = board.filter((_, i) => !clearedSet.has(i));
+  const cs = new Set(cleared);
+  board = board.filter((_,i) => !cs.has(i));
   while (board.length < ROWS) board.unshift(Array(COLS).fill(null));
 
-  // Effects
   playLineClear();
   triggerBorderFlash();
-  spawnLineParticles(cleared);
 
-  // Wave progression — unbounded, cycles through WAVES infinitely
-  const newWave = Math.floor(lines / LINES_PER_WAVE);
-  if (newWave !== currentWave) {
-    currentWave = newWave;
-    announceWave(waveData());
+  // Spawn explosions for cleared cells
+  const rect = gameCanvas.getBoundingClientRect();
+  for (const row of cleared) {
+    for (let col = 0; col < COLS; col++) {
+      spawnExplosionAt(
+        rect.left + col * CELL + CELL/2,
+        rect.top  + row * CELL + CELL/2,
+      );
+    }
   }
 
-  // Sync active sprite sheet to the current wave.
-  // Triggers glitch effect whenever the sheet actually changes.
-  const targetSheet = sheetForWave(currentWave);
-  if (targetSheet !== activeSheet) {
-    activeSheet = targetSheet;
+  // Wave progression
+  const newWave = waveIndexFromLines(lines);
+  if (newWave !== currentWave) {
+    currentWave = newWave;
+    activeSheet = sheetForWaveIdx(currentWave);
+    applyWaveStyle(waveData());
+    announceWave(waveData());
     triggerGlitch();
   }
 
   updateHUD();
 }
 
-// ============================================================
+// ═══════════════════════════════════════════════════════════
 //  EFFECTS
-// ============================================================
-function triggerShake() {
-  gameWrapper.classList.remove('shake');
-  void gameWrapper.offsetWidth;
-  gameWrapper.classList.add('shake');
-  gameWrapper.addEventListener('animationend', () => gameWrapper.classList.remove('shake'), { once: true });
+// ═══════════════════════════════════════════════════════════
+function applyWaveStyle(wave) {
+  document.documentElement.style.setProperty('--bc', wave.borderColor);
 }
 
-function triggerBorderFlash() {
-  gameWrapper.classList.remove('flash');
+function _restartAnim(cls) {
+  gameWrapper.classList.remove(cls);
   void gameWrapper.offsetWidth;
-  gameWrapper.classList.add('flash');
-  gameWrapper.addEventListener('animationend', () => gameWrapper.classList.remove('flash'), { once: true });
+  gameWrapper.classList.add(cls);
+  gameWrapper.addEventListener('animationend', () => gameWrapper.classList.remove(cls), { once:true });
 }
 
-function triggerGlitch() {
-  glitchFrames = GLITCH_RENDER_FRAMES;
-  gameWrapper.classList.remove('glitch');
-  void gameWrapper.offsetWidth; // force reflow so animation restarts
-  gameWrapper.classList.add('glitch');
-  gameWrapper.addEventListener('animationend', () => gameWrapper.classList.remove('glitch'), { once: true });
+function triggerShake()      { _restartAnim('shake'); }
+function triggerBorderFlash(){ _restartAnim('flash'); }
+function triggerGlitch()     { glitchFrames = GLITCH_FRAMES; _restartAnim('glitch'); }
+
+// Called by audio scheduler on every 3rd dot stab
+function triggerBeatHit() {
+  if (!gameRunning || paused) return;
+  triggerShake();
+  triggerBorderFlash();
 }
 
 function announceWave(wave) {
   const el   = document.getElementById('waveAnnounce');
   const text = document.getElementById('waveAnnounceText');
   text.textContent = `${wave.emojis.join(' ')}  ${wave.name}  ${wave.emojis.join(' ')}`;
-  text.style.color = wave.colors[0];
+  text.style.color = wave.borderColor;
   el.classList.add('show');
-  setTimeout(() => el.classList.remove('show'), 2000);
-  updateHUD();
+  setTimeout(() => el.classList.remove('show'), 2200);
 }
 
 function triggerGameOver() {
   gameRunning = false;
   gameOver    = true;
   if (schedulerTimer) { clearInterval(schedulerTimer); schedulerTimer = null; }
-  const overlay = document.getElementById('overlay');
   document.getElementById('overlayTitle').textContent = 'GAME OVER';
   document.getElementById('overlayMsg').textContent   = 'Final Score';
-  const scoreFinal = document.getElementById('overlayScore');
-  scoreFinal.textContent = score.toLocaleString();
-  scoreFinal.style.display = 'block';
+  const sf = document.getElementById('overlayScore');
+  sf.textContent   = score.toLocaleString();
+  sf.style.display = 'block';
   document.getElementById('startBtn').textContent = 'Play Again';
-  overlay.style.display = 'flex';
+  document.getElementById('overlay').style.display = 'flex';
 }
 
-// ============================================================
-//  PARTICLE SYSTEM
-// ============================================================
-let particles = [];
-
-function spawnLineParticles(clearedRows) {
-  const wave    = waveData();
-  const rect    = gameCanvas.getBoundingClientRect();
-  const offsetX = rect.left;
-  const offsetY = rect.top;
-
-  for (const row of clearedRows) {
-    for (let col = 0; col < COLS; col++) {
-      const cx = offsetX + col * CELL + CELL / 2;
-      const cy = offsetY + row * CELL + CELL / 2;
-      const count = 18;
-      for (let i = 0; i < count; i++) {
-        const angle = (Math.PI * 2 * i / count) + (Math.random() - 0.5) * 0.8;
-        const speed = 2 + Math.random() * 6;
-        const color = wave.colors[Math.floor(Math.random() * wave.colors.length)];
-        const emoji = wave.emojis[Math.floor(Math.random() * wave.emojis.length)];
-        particles.push({
-          x: cx, y: cy,
-          vx: Math.cos(angle) * speed,
-          vy: Math.sin(angle) * speed,
-          alpha: 1,
-          size: 8 + Math.random() * 14,
-          color,
-          emoji: Math.random() < 0.35 ? emoji : null,
-          life: 1,
-          decay: 0.018 + Math.random() * 0.025,
-          glow: color,
-        });
-      }
-    }
-  }
-}
-
-function updateParticles(dt) {
-  for (const p of particles) {
-    p.x    += p.vx * dt * 60;
-    p.y    += p.vy * dt * 60;
-    p.vy   += 0.12 * dt * 60; // gravity
-    p.life -= p.decay * dt * 60;
-    p.alpha = Math.max(0, p.life);
-  }
-  particles = particles.filter(p => p.life > 0);
-}
-
-function renderParticles() {
-  pCtx.clearRect(0, 0, particleCanvas.width, particleCanvas.height);
-  for (const p of particles) {
-    pCtx.save();
-    pCtx.globalAlpha = p.alpha;
-    if (p.emoji) {
-      pCtx.font = `${p.size}px serif`;
-      pCtx.shadowBlur  = 12;
-      pCtx.shadowColor = p.glow;
-      pCtx.textAlign   = 'center';
-      pCtx.textBaseline= 'middle';
-      pCtx.fillText(p.emoji, p.x, p.y);
-    } else {
-      pCtx.shadowBlur  = 18;
-      pCtx.shadowColor = p.glow;
-      pCtx.fillStyle   = p.color;
-      pCtx.beginPath();
-      pCtx.arc(p.x, p.y, p.size / 2, 0, Math.PI * 2);
-      pCtx.fill();
-    }
-    pCtx.restore();
-  }
-}
-
-// ============================================================
+// ═══════════════════════════════════════════════════════════
 //  BACKGROUND VISUALIZER
-// ============================================================
-let vizData = new Uint8Array(256);
+// ═══════════════════════════════════════════════════════════
+const vizData = new Uint8Array(256);
 
 function renderBackground() {
   const W = bgCanvas.width, H = bgCanvas.height;
   const wave = waveData();
-
-  // Fade previous frame
   bgCtx.fillStyle = `${wave.bgTint}0.18)`;
   bgCtx.fillRect(0, 0, W, H);
 
-  if (analyser && gameRunning && !paused) {
-    analyser.getByteFrequencyData(vizData);
-  }
+  if (analyser && gameRunning && !paused) analyser.getByteFrequencyData(vizData);
 
-  // Draw frequency bars symmetrically at bottom
-  const barCount = 64;
-  const barW     = W / barCount;
-  for (let i = 0; i < barCount; i++) {
-    const value = vizData[Math.floor(i * vizData.length / barCount)] / 255;
-    const barH  = value * H * 0.5;
-    const color = wave.colors[i % wave.colors.length];
-    const alpha = 0.4 + value * 0.5;
-
+  const barW = W / 64;
+  for (let i = 0; i < 64; i++) {
+    const v  = vizData[Math.floor(i * vizData.length / 64)] / 255;
+    const bH = v * H * 0.5;
+    const c  = wave.colors[i % wave.colors.length];
     bgCtx.save();
-    bgCtx.globalAlpha = alpha;
-    bgCtx.shadowBlur  = 15 + value * 20;
-    bgCtx.shadowColor = color;
-    bgCtx.fillStyle   = color;
-    bgCtx.fillRect(i * barW, H - barH, barW - 1, barH);
-    // Mirror at top
-    bgCtx.fillRect(i * barW, 0, barW - 1, barH * 0.4);
+    bgCtx.globalAlpha = 0.38 + v * 0.52;
+    bgCtx.shadowBlur  = 14 + v * 18;
+    bgCtx.shadowColor = c;
+    bgCtx.fillStyle   = c;
+    bgCtx.fillRect(i * barW, H - bH, barW - 1, bH);
+    bgCtx.fillRect(i * barW, 0,      barW - 1, bH * 0.38);
     bgCtx.restore();
   }
 
-  // Subtle center grid lines
+  // Grid overlay
   bgCtx.save();
-  bgCtx.globalAlpha = 0.04;
-  bgCtx.strokeStyle = wave.colors[0];
-  bgCtx.lineWidth   = 1;
-  for (let x = 0; x < W; x += 40) {
-    bgCtx.beginPath(); bgCtx.moveTo(x, 0); bgCtx.lineTo(x, H); bgCtx.stroke();
-  }
-  for (let y = 0; y < H; y += 40) {
-    bgCtx.beginPath(); bgCtx.moveTo(0, y); bgCtx.lineTo(W, y); bgCtx.stroke();
-  }
+  bgCtx.globalAlpha = 0.035;
+  bgCtx.strokeStyle = wave.borderColor;
+  bgCtx.lineWidth   = 0.5;
+  for (let x = 0; x < W; x += 40) { bgCtx.beginPath(); bgCtx.moveTo(x,0); bgCtx.lineTo(x,H); bgCtx.stroke(); }
+  for (let y = 0; y < H; y += 40) { bgCtx.beginPath(); bgCtx.moveTo(0,y); bgCtx.lineTo(W,y); bgCtx.stroke(); }
   bgCtx.restore();
 }
 
-// ============================================================
-//  RENDERING — GAME BOARD
-// ============================================================
+// ═══════════════════════════════════════════════════════════
+//  RENDERING — CELL
+// ═══════════════════════════════════════════════════════════
 /**
- * Draws a single tetromino cell at grid position (gx, gy).
- * Uses the active sprite sheet when loaded; falls back to emoji rendering.
- *
- * Sprite sheet mapping (4×4 sheet, 256×256 px per icon):
- *   emojiIdx 0 → row 0, col 0
- *   emojiIdx 1 → row 0, col 1
- *   emojiIdx 2 → row 0, col 2
+ * Draws one tetromino cell.
+ * Uses the active sprite sheet via PIECE_SPRITE_MAP[type].
+ * Falls back to emoji if sheet not loaded.
  */
-function drawCell(ctx, gx, gy, wave, emojiIdx, alpha) {
-  const waveData = WAVES[wave % WAVES.length];
-  const color    = waveData.colors[emojiIdx % waveData.colors.length];
-  const x = gx * CELL, y = gy * CELL;
-  const pad = 2;
+function drawCell(ctx, gx, gy, waveIdx, type, alpha) {
+  const wd    = WAVES[waveIdx % WAVES.length];
+  const color = wd.colors[type % wd.colors.length];
+  const x = gx * CELL, y = gy * CELL, pad = 2;
 
   ctx.save();
   ctx.globalAlpha = alpha ?? 1;
 
-  // Cell background
   ctx.fillStyle = 'rgba(0,0,0,0.55)';
-  ctx.fillRect(x + pad, y + pad, CELL - pad*2, CELL - pad*2);
+  ctx.fillRect(x+pad, y+pad, CELL-pad*2, CELL-pad*2);
 
-  // Neon border
   ctx.strokeStyle = color;
   ctx.lineWidth   = 1.5;
   ctx.shadowBlur  = 10;
   ctx.shadowColor = color;
-  ctx.strokeRect(x + pad + 0.5, y + pad + 0.5, CELL - pad*2 - 1, CELL - pad*2 - 1);
+  ctx.strokeRect(x+pad+0.5, y+pad+0.5, CELL-pad*2-1, CELL-pad*2-1);
+
+  const sm = PIECE_SPRITE_MAP[type % PIECE_SPRITE_MAP.length];
 
   if (activeSheet && activeSheet.complete && activeSheet.naturalWidth > 0) {
-    // --- Sprite sheet path ---
-    // Map emojiIdx (0, 1, 2) to sprite sheet column; row is always 0 for the
-    // first three icon types. Extend here if more rows are needed.
-    const spriteCol = emojiIdx % SPRITE_SHEET_COLS;
-    const spriteRow = Math.floor(emojiIdx / SPRITE_SHEET_COLS);
-    const sprite    = getSprite(activeSheet, spriteRow, spriteCol);
-
     ctx.shadowBlur  = 16;
     ctx.shadowColor = color;
-    ctx.drawImage(
-      sprite.image,
-      sprite.sx, sprite.sy, sprite.sw, sprite.sh,
-      x + pad, y + pad, CELL - pad * 2, CELL - pad * 2,
-    );
 
-    // Glitch render pass: RGB channel split for the first half of glitch frames
-    if (glitchFrames > GLITCH_RENDER_FRAMES / 2) {
-      const shift = Math.round((glitchFrames / GLITCH_RENDER_FRAMES) * 5);
+    // Glitch RGB-split during transitions
+    if (glitchFrames > GLITCH_FRAMES / 2) {
+      const sh = Math.round((glitchFrames / GLITCH_FRAMES) * 4);
       ctx.globalCompositeOperation = 'screen';
-      ctx.globalAlpha = 0.18 * (alpha ?? 1);
-      ctx.drawImage(sprite.image, sprite.sx, sprite.sy, sprite.sw, sprite.sh,
-        x + pad - shift, y + pad, CELL - pad * 2, CELL - pad * 2);
-      ctx.drawImage(sprite.image, sprite.sx, sprite.sy, sprite.sw, sprite.sh,
-        x + pad + shift, y + pad, CELL - pad * 2, CELL - pad * 2);
+      ctx.globalAlpha = 0.16 * (alpha ?? 1);
+      ctx.drawImage(activeSheet, sm.col*SPRITE_SIZE, sm.row*SPRITE_SIZE, SPRITE_SIZE, SPRITE_SIZE,
+        x+pad-sh, y+pad, CELL-pad*2, CELL-pad*2);
+      ctx.drawImage(activeSheet, sm.col*SPRITE_SIZE, sm.row*SPRITE_SIZE, SPRITE_SIZE, SPRITE_SIZE,
+        x+pad+sh, y+pad, CELL-pad*2, CELL-pad*2);
       ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = alpha ?? 1;
     }
-  } else {
-    // --- Emoji fallback path ---
-    const emoji    = waveData.emojis[emojiIdx % waveData.emojis.length];
-    const fontSize = CELL - 10;
-    ctx.font          = `${fontSize}px serif`;
-    ctx.textAlign     = 'center';
-    ctx.textBaseline  = 'middle';
-    ctx.shadowBlur    = 16;
-    ctx.shadowColor   = color;
-    ctx.fillStyle     = '#fff';
-    ctx.fillText(emoji, x + CELL / 2, y + CELL / 2 + 1);
-    ctx.shadowBlur    = 8;
-    ctx.fillText(emoji, x + CELL / 2, y + CELL / 2 + 1);
-  }
 
+    ctx.drawImage(activeSheet,
+      sm.col*SPRITE_SIZE, sm.row*SPRITE_SIZE, SPRITE_SIZE, SPRITE_SIZE,
+      x+pad, y+pad, CELL-pad*2, CELL-pad*2);
+  } else {
+    // Emoji fallback
+    const emoji = wd.emojis[type % wd.emojis.length];
+    ctx.font         = `${CELL-10}px serif`;
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowBlur   = 16; ctx.shadowColor = color; ctx.fillStyle = '#fff';
+    ctx.fillText(emoji, x+CELL/2, y+CELL/2+1);
+    ctx.shadowBlur = 8;
+    ctx.fillText(emoji, x+CELL/2, y+CELL/2+1);
+  }
   ctx.restore();
 }
 
+// ═══════════════════════════════════════════════════════════
+//  RENDERING — BOARD
+// ═══════════════════════════════════════════════════════════
 function renderBoard() {
   gCtx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
 
-  // Grid lines
   gCtx.save();
-  gCtx.strokeStyle = 'rgba(255,255,255,0.05)';
+  gCtx.strokeStyle = 'rgba(255,255,255,0.04)';
   gCtx.lineWidth   = 0.5;
-  for (let c = 0; c <= COLS; c++) {
-    gCtx.beginPath(); gCtx.moveTo(c * CELL, 0); gCtx.lineTo(c * CELL, ROWS * CELL); gCtx.stroke();
-  }
-  for (let r = 0; r <= ROWS; r++) {
-    gCtx.beginPath(); gCtx.moveTo(0, r * CELL); gCtx.lineTo(COLS * CELL, r * CELL); gCtx.stroke();
-  }
+  for (let c=0; c<=COLS; c++) { gCtx.beginPath(); gCtx.moveTo(c*CELL,0); gCtx.lineTo(c*CELL,ROWS*CELL); gCtx.stroke(); }
+  for (let r=0; r<=ROWS; r++) { gCtx.beginPath(); gCtx.moveTo(0,r*CELL); gCtx.lineTo(COLS*CELL,r*CELL); gCtx.stroke(); }
   gCtx.restore();
 
-  // Locked cells
-  for (let r = 0; r < ROWS; r++) {
-    for (let c = 0; c < COLS; c++) {
+  for (let r=0; r<ROWS; r++)
+    for (let c=0; c<COLS; c++) {
       const cell = board[r][c];
-      if (cell) drawCell(gCtx, c, r, cell.wave, cell.emojiIdx);
+      if (cell) drawCell(gCtx, c, r, cell.wave, cell.type);
     }
-  }
 
-  // Ghost piece
   if (currentPiece && gameRunning && !gameOver) {
-    let ghostY = 0;
-    while (!collides(currentPiece, 0, ghostY + 1)) ghostY++;
-    if (ghostY > 0) {
-      for (const [cx, cy] of currentPiece.cells) {
-        const gx = cx + currentPiece.x;
-        const gy = cy + currentPiece.y + ghostY;
-        if (gy >= 0) drawCell(gCtx, gx, gy, currentWave, currentPiece.emojiIdx, 0.25);
+    let gy = 0;
+    while (!collides(currentPiece,0,gy+1)) gy++;
+    if (gy > 0)
+      for (const [cx,cy] of currentPiece.cells) {
+        const ax=cx+currentPiece.x, ay=cy+currentPiece.y+gy;
+        if (ay>=0) drawCell(gCtx, ax, ay, currentWave, currentPiece.type, 0.22);
       }
-    }
   }
 
-  // Active piece
-  if (currentPiece && !gameOver) {
-    for (const [cx, cy] of currentPiece.cells) {
-      const gx = cx + currentPiece.x;
-      const gy = cy + currentPiece.y;
-      if (gy >= 0) drawCell(gCtx, gx, gy, currentWave, currentPiece.emojiIdx);
+  if (currentPiece && !gameOver)
+    for (const [cx,cy] of currentPiece.cells) {
+      const ax=cx+currentPiece.x, ay=cy+currentPiece.y;
+      if (ay>=0) drawCell(gCtx, ax, ay, currentWave, currentPiece.type);
     }
-  }
 }
 
-function renderNextPiece() {
+// ═══════════════════════════════════════════════════════════
+//  RENDERING — NEXT PIECE
+// ═══════════════════════════════════════════════════════════
+function renderNext() {
   nCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
   if (!nextPiece) return;
 
-  const wave  = waveData();
-  const color = wave.colors[nextPiece.emojiIdx % wave.colors.length];
+  const wd    = waveData();
+  const color = wd.colors[nextPiece.type % wd.colors.length];
+  const xs    = nextPiece.cells.map(c=>c[0]);
+  const ys    = nextPiece.cells.map(c=>c[1]);
+  const minX  = Math.min(...xs), maxX=Math.max(...xs);
+  const minY  = Math.min(...ys), maxY=Math.max(...ys);
+  const offX  = Math.floor((4-(maxX-minX+1))/2) - minX;
+  const offY  = Math.floor((4-(maxY-minY+1))/2) - minY;
+  const pad   = 2;
+  const sm    = PIECE_SPRITE_MAP[nextPiece.type % PIECE_SPRITE_MAP.length];
 
-  const xs   = nextPiece.cells.map(c => c[0]);
-  const ys   = nextPiece.cells.map(c => c[1]);
-  const minX = Math.min(...xs), maxX = Math.max(...xs);
-  const minY = Math.min(...ys), maxY = Math.max(...ys);
-  const offX = Math.floor((4 - (maxX - minX + 1)) / 2) - minX;
-  const offY = Math.floor((4 - (maxY - minY + 1)) / 2) - minY;
-
-  for (const [cx, cy] of nextPiece.cells) {
-    const px  = (cx + offX) * CELL;
-    const py  = (cy + offY) * CELL;
-    const pad = 2;
-
+  for (const [cx,cy] of nextPiece.cells) {
+    const px=(cx+offX)*CELL, py=(cy+offY)*CELL;
     nCtx.save();
-    nCtx.strokeStyle = color;
-    nCtx.lineWidth   = 1.5;
-    nCtx.shadowBlur  = 10;
-    nCtx.shadowColor = color;
-    nCtx.strokeRect(px + pad + 0.5, py + pad + 0.5, CELL - pad * 2 - 1, CELL - pad * 2 - 1);
-
+    nCtx.strokeStyle=color; nCtx.lineWidth=1.5;
+    nCtx.shadowBlur=10; nCtx.shadowColor=color;
+    nCtx.strokeRect(px+pad+0.5, py+pad+0.5, CELL-pad*2-1, CELL-pad*2-1);
     if (activeSheet && activeSheet.complete && activeSheet.naturalWidth > 0) {
-      const spriteCol = nextPiece.emojiIdx % SPRITE_SHEET_COLS;
-      const spriteRow = Math.floor(nextPiece.emojiIdx / SPRITE_SHEET_COLS);
-      const sprite    = getSprite(activeSheet, spriteRow, spriteCol);
-      nCtx.shadowBlur  = 14;
-      nCtx.shadowColor = color;
-      nCtx.drawImage(
-        sprite.image,
-        sprite.sx, sprite.sy, sprite.sw, sprite.sh,
-        px + pad, py + pad, CELL - pad * 2, CELL - pad * 2,
-      );
+      nCtx.shadowBlur=14; nCtx.shadowColor=color;
+      nCtx.drawImage(activeSheet,
+        sm.col*SPRITE_SIZE, sm.row*SPRITE_SIZE, SPRITE_SIZE, SPRITE_SIZE,
+        px+pad, py+pad, CELL-pad*2, CELL-pad*2);
     } else {
-      const emoji    = wave.emojis[nextPiece.emojiIdx % wave.emojis.length];
-      const fontSize = CELL - 10;
-      nCtx.font         = `${fontSize}px serif`;
-      nCtx.textAlign    = 'center';
-      nCtx.textBaseline = 'middle';
-      nCtx.shadowBlur   = 14;
-      nCtx.shadowColor  = color;
-      nCtx.fillStyle    = '#fff';
-      nCtx.fillText(emoji, px + CELL / 2, py + CELL / 2 + 1);
+      const emoji=wd.emojis[nextPiece.type%wd.emojis.length];
+      nCtx.font=`${CELL-10}px serif`; nCtx.textAlign='center'; nCtx.textBaseline='middle';
+      nCtx.shadowBlur=14; nCtx.shadowColor=color; nCtx.fillStyle='#fff';
+      nCtx.fillText(emoji, px+CELL/2, py+CELL/2+1);
     }
     nCtx.restore();
   }
 }
 
-// ============================================================
+// ═══════════════════════════════════════════════════════════
 //  HUD
-// ============================================================
+// ═══════════════════════════════════════════════════════════
 function updateHUD() {
-  document.getElementById('scoreDisplay').textContent  = score.toLocaleString();
-  document.getElementById('levelDisplay').textContent  = level;
-  document.getElementById('linesDisplay').textContent  = lines;
-  document.getElementById('waveNameDisplay').textContent = waveData().name;
-  document.getElementById('cycleDisplay').textContent  = currentCycle() + 1;
+  document.getElementById('scoreDisplay').textContent   = score.toLocaleString();
+  document.getElementById('levelDisplay').textContent   = level;
+  document.getElementById('linesDisplay').textContent   = lines;
+  document.getElementById('waveNameDisplay').textContent= waveData().name;
+  document.getElementById('cycleDisplay').textContent   = currentCycle() + 1;
 }
 
-// ============================================================
+// ═══════════════════════════════════════════════════════════
 //  GAME LOOP
-// ============================================================
+// ═══════════════════════════════════════════════════════════
 function gameLoop(ts) {
   const dt = Math.min((ts - lastTime) / 1000, 0.05);
   lastTime = ts;
 
-  renderBackground();
-
   if (glitchFrames > 0) glitchFrames--;
+
+  renderBackground();
 
   if (gameRunning && !paused) {
     dropTimer += dt * 1000;
     if (dropTimer >= dropInterval()) {
       dropTimer = 0;
-      if (!collides(currentPiece, 0, 1)) {
-        currentPiece.y++;
-      } else {
-        lockPiece();
-      }
+      if (!collides(currentPiece,0,1)) currentPiece.y++;
+      else lockPiece();
     }
-    updateParticles(dt);
+    updatePool(dt);
   }
 
   renderBoard();
-  renderNextPiece();
-  renderParticles();
+  renderNext();
+  renderPool();
 
   requestAnimationFrame(gameLoop);
 }
 
-// ============================================================
-//  INPUT
-// ============================================================
-let das = 0;         // delayed auto shift
-let dasDir = 0;
-const DAS_DELAY = 150;
-const DAS_RATE  = 50;
-let dasTimer    = 0;
-let dasLastTime = 0;
-
+// ═══════════════════════════════════════════════════════════
+//  INPUT  (with DAS)
+// ═══════════════════════════════════════════════════════════
 const keysDown = new Set();
+let dasDir = 0, dasLastTime = 0, dasTimer = 0;
+const DAS_DELAY = 150, DAS_RATE = 48;
 
 document.addEventListener('keydown', e => {
-  if (!gameRunning || paused) {
-    if (e.code === 'KeyP' && gameRunning) { paused = false; }
-    return;
-  }
+  if (e.code === 'KeyP' && gameRunning) { paused = !paused; return; }
+  if (e.code === 'KeyM') { setMuted(!muted); return; }
+  if (!gameRunning || paused) return;
 
   switch (e.code) {
     case 'ArrowLeft':
-      if (!keysDown.has('ArrowLeft')) { moveLeft(); dasDir = -1; das = 0; dasLastTime = performance.now(); }
-      keysDown.add('ArrowLeft');
-      break;
+      if (!keysDown.has('ArrowLeft')) { moveLeft(); dasDir=-1; dasLastTime=performance.now(); }
+      keysDown.add('ArrowLeft'); break;
     case 'ArrowRight':
-      if (!keysDown.has('ArrowRight')) { moveRight(); dasDir = 1; das = 0; dasLastTime = performance.now(); }
-      keysDown.add('ArrowRight');
-      break;
-    case 'ArrowUp':
-      e.preventDefault();
-      tryRotate();
-      break;
-    case 'ArrowDown':
-      e.preventDefault();
-      softDrop();
-      break;
-    case 'Space':
-      e.preventDefault();
-      hardDrop();
-      break;
-    case 'KeyP':
-      paused = true;
-      break;
-    case 'KeyM':
-      setMuted(!muted);
-      break;
+      if (!keysDown.has('ArrowRight')) { moveRight(); dasDir=1; dasLastTime=performance.now(); }
+      keysDown.add('ArrowRight'); break;
+    case 'ArrowUp':   e.preventDefault(); tryRotate(); break;
+    case 'ArrowDown': e.preventDefault(); softDrop();  break;
+    case 'Space':     e.preventDefault(); hardDrop();  break;
   }
 });
-
 document.addEventListener('keyup', e => {
   keysDown.delete(e.code);
   if (e.code === 'ArrowLeft' || e.code === 'ArrowRight') dasDir = 0;
 });
-
-// DAS loop
 setInterval(() => {
-  if (dasDir === 0 || !gameRunning || paused) return;
+  if (!dasDir || !gameRunning || paused) return;
   const now = performance.now();
-  if (now - dasLastTime > DAS_DELAY) {
-    if (now - dasTimer > DAS_RATE) {
-      dasTimer = now;
-      if (dasDir === -1) moveLeft(); else moveRight();
-    }
+  if (now - dasLastTime > DAS_DELAY && now - dasTimer > DAS_RATE) {
+    dasTimer = now;
+    if (dasDir === -1) moveLeft(); else moveRight();
   }
 }, 16);
 
-// ============================================================
+// ═══════════════════════════════════════════════════════════
 //  START / RESTART
-// ============================================================
+// ═══════════════════════════════════════════════════════════
 document.getElementById('startBtn').addEventListener('click', () => {
   initAudio();
   resetGame();
-  gameRunning  = true;
-  paused       = false;
+  gameRunning = true;
+  paused      = false;
   document.getElementById('overlay').style.display = 'none';
   announceWave(WAVES[0]);
   if (schedulerTimer) clearInterval(schedulerTimer);
-  if (audioCtx) {
-    nextNoteTime = audioCtx.currentTime + 0.1;
-    currentBeat  = 0;
-    schedulerTimer = setInterval(scheduler, 25);
-  }
+  nextNoteTime   = audioCtx.currentTime + 0.1;
+  currentBeat16  = 0;
+  schedulerTimer = setInterval(runScheduler, 22);
 });
 
-// ============================================================
+// ═══════════════════════════════════════════════════════════
 //  BOOT
-// ============================================================
+// ═══════════════════════════════════════════════════════════
 initBoard();
+applyWaveStyle(WAVES[0]);
 requestAnimationFrame(ts => { lastTime = ts; gameLoop(ts); });
 </script>
 </body>
