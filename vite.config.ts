@@ -12,6 +12,7 @@ export default defineConfig({
         "emoji-neon-tris": resolve(__dirname, "games/emoji-neon-tris/index.html"),
         "breakout":       resolve(__dirname, "games/breakout/index.html"),
         "fractal-swarm":  resolve(__dirname, "games/fractal-swarm/index.html"),
+        "pixel-smash":    resolve(__dirname, "games/pixel-smash/index.html"),
       },
     },
   },

@@ -1,0 +1,1711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pixel Smash — Xavier's Arcade</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0a0a0a;
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh; overflow: hidden;
+      font-family: 'Courier New', monospace;
+      user-select: none;
+    }
+
+    #wrap {
+      position: relative;
+      width: 1280px; height: 720px;
+      flex-shrink: 0;
+    }
+
+    #gc { display: block; background: #111; }
+
+    /* ── CRT Pulsing Scanlines ── */
+    #crt {
+      position: absolute; inset: 0;
+      pointer-events: none; z-index: 10;
+      background:
+        repeating-linear-gradient(
+          to bottom,
+          transparent 0, transparent 3px,
+          rgba(0,0,0,0.18) 3px, rgba(0,0,0,0.18) 4px
+        );
+      animation: crtPulse 6s ease-in-out infinite;
+    }
+    @keyframes crtPulse {
+      0%,100% { opacity: 1; }
+      50%      { opacity: 0.88; }
+    }
+
+    /* ── HUD overlay (drawn on canvas, but damage % is in DOM for accessibility) ── */
+    #hud {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      display: flex; justify-content: space-between; align-items: flex-end;
+      padding: 10px 40px 14px;
+      pointer-events: none; z-index: 5;
+    }
+    .p-hud {
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+    }
+    .p-name  { font-size: 0.65rem; letter-spacing: 3px; text-transform: uppercase; }
+    .p-pct   { font-size: 2.8rem; font-weight: bold; line-height: 1; }
+    .p-stocks { display: flex; gap: 6px; }
+    .stock-dot {
+      width: 14px; height: 14px; border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.3);
+    }
+    .stock-dot.alive { opacity: 1; }
+    .stock-dot.dead  { opacity: 0.18; }
+    #p1hud .p-name  { color: var(--c1, #fff); text-shadow: 0 0 8px var(--c1,#fff); }
+    #p1hud .p-pct   { color: #fff; text-shadow: 0 0 12px var(--c1, #fff); }
+    #p2hud .p-name  { color: var(--c2, #fff); text-shadow: 0 0 8px var(--c2,#fff); }
+    #p2hud .p-pct   { color: #fff; text-shadow: 0 0 12px var(--c2, #fff); }
+
+    /* ── Overlay screens ── */
+    .screen {
+      position: absolute; inset: 0; z-index: 20;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 18px;
+      background: rgba(10,10,10,0.92);
+    }
+    .screen.hidden { display: none; }
+
+    .screen h1 {
+      font-size: 3rem; letter-spacing: 10px; text-transform: uppercase;
+      color: #fff;
+      text-shadow: 0 0 20px #fff, 0 0 50px currentColor;
+      animation: titleGlow 2s ease-in-out infinite alternate;
+    }
+    @keyframes titleGlow {
+      from { text-shadow: 0 0 20px #ff4444, 0 0 50px #ff4444; color: #ff8888; }
+      to   { text-shadow: 0 0 20px #4488ff, 0 0 50px #4488ff; color: #88aaff; }
+    }
+    .screen p { font-size: 0.65rem; letter-spacing: 3px; color: #555; }
+
+    /* ── Character Select ── */
+    #charSelect { padding: 0 60px; gap: 30px; }
+    #charSelect h2 { font-size: 1.2rem; letter-spacing: 6px; color: #888; margin-bottom: 8px; }
+    #csGrid {
+      display: grid; grid-template-columns: repeat(4, 160px); gap: 14px;
+    }
+    .cs-card {
+      border: 2px solid #222; border-radius: 4px;
+      background: #111; padding: 12px 8px 10px;
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      position: relative; cursor: pointer; transition: border-color 0.15s;
+    }
+    .cs-card canvas  { display: block; }
+    .cs-card .cs-name { font-size: 0.5rem; letter-spacing: 2px; color: #888; text-transform: uppercase; }
+    .cs-card .cs-type { font-size: 0.38rem; letter-spacing: 1px; color: #444; }
+    .cs-card .cs-abil { font-size: 0.38rem; letter-spacing: 1px; }
+
+    /* Player cursors on cards */
+    .cs-card.p1sel { border-color: var(--p1color, #ff4444); box-shadow: 0 0 12px var(--p1color, #ff4444); }
+    .cs-card.p2sel { border-color: var(--p2color, #4488ff); box-shadow: 0 0 12px var(--p2color, #4488ff); }
+    .cs-card.p1sel.p2sel { border-color: #fff; box-shadow: 0 0 16px #888; }
+
+    .cs-cursor {
+      position: absolute; top: 4px;
+      font-size: 0.45rem; letter-spacing: 1px; font-weight: bold;
+      padding: 1px 5px; border-radius: 2px;
+    }
+    .cs-cursor.c1 { left: 4px; background: #ff444433; color: #ff4444; }
+    .cs-cursor.c2 { right: 4px; background: #4488ff33; color: #4488ff; }
+
+    #csInfo {
+      display: flex; gap: 40px; margin-top: 6px;
+    }
+    .cs-stat-block { font-size: 0.42rem; letter-spacing: 1px; color: #555; line-height: 2.2; }
+    .cs-stat-block span { color: #888; }
+
+    #csControls { font-size: 0.42rem; letter-spacing: 2px; color: #333; text-align: center; line-height: 2.2; }
+    #csControls b { color: #555; }
+
+    /* ── Results ── */
+    #results .winner-name { font-size: 2rem; letter-spacing: 8px; }
+    #results .winner-wins { font-size: 0.6rem; letter-spacing: 4px; color: #555; }
+
+    /* ── Tech Feed (side notifications) ── */
+    #techFeed {
+      position: absolute; top: 60px; left: 50%;
+      transform: translateX(-50%);
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      pointer-events: none; z-index: 15;
+    }
+    .tech-msg {
+      font-size: 0.65rem; letter-spacing: 3px; padding: 3px 10px;
+      border-radius: 2px; animation: feedFade 1.4s forwards;
+    }
+    @keyframes feedFade {
+      0%   { opacity: 1; transform: translateY(0); }
+      70%  { opacity: 1; }
+      100% { opacity: 0; transform: translateY(-20px); }
+    }
+
+    .btn {
+      padding: 12px 32px; font-family: inherit; font-size: 0.55rem;
+      letter-spacing: 4px; background: transparent; color: #fff;
+      border: 1px solid #444; cursor: pointer; transition: all 0.15s;
+    }
+    .btn:hover { border-color: #fff; background: rgba(255,255,255,0.06); }
+
+    #debugInfo {
+      position: absolute; top: 8px; right: 10px; z-index: 12;
+      font-size: 0.38rem; color: #333; letter-spacing: 1px; line-height: 1.8;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="gc" width="1280" height="720"></canvas>
+  <div id="crt"></div>
+
+  <!-- HUD -->
+  <div id="hud">
+    <div class="p-hud" id="p1hud">
+      <div class="p-name" id="p1name">P1</div>
+      <div class="p-pct"  id="p1pct">0<span style="font-size:1.4rem">%</span></div>
+      <div class="p-stocks" id="p1stocks"></div>
+    </div>
+    <div class="p-hud" id="p2hud">
+      <div class="p-name" id="p2name">P2</div>
+      <div class="p-pct"  id="p2pct">0<span style="font-size:1.4rem">%</span></div>
+      <div class="p-stocks" id="p2stocks"></div>
+    </div>
+  </div>
+
+  <!-- Tech feed -->
+  <div id="techFeed"></div>
+  <div id="debugInfo"></div>
+
+  <!-- Title -->
+  <div class="screen" id="titleScreen">
+    <h1>PIXEL SMASH</h1>
+    <p>MELEE-STYLE PLATFORM FIGHTER TECH DEMO</p>
+    <button class="btn" id="titleStartBtn">PRESS START</button>
+    <p style="margin-top:8px; font-size:0.38rem; color:#333">WAVEDASH · L-CANCEL · TECH · KNOCKBACK PHYSICS</p>
+    <a href="../../index.html" style="font-family:inherit;font-size:0.38rem;letter-spacing:3px;color:#333;text-decoration:none;margin-top:10px;">← BACK TO ARCADE</a>
+  </div>
+
+  <!-- Character Select -->
+  <div class="screen hidden" id="charSelect">
+    <h2>SELECT YOUR FIGHTER</h2>
+    <div id="csGrid"></div>
+    <div id="csInfo">
+      <div class="cs-stat-block" id="p1stats">P1 STATS</div>
+      <div class="cs-stat-block" id="p2stats">P2 STATS</div>
+    </div>
+    <div id="csControls">
+      <b>P1:</b> A/D SELECT &nbsp;·&nbsp; J CONFIRM &nbsp;&nbsp;&nbsp;
+      <b>P2:</b> ◄/► SELECT &nbsp;·&nbsp; NUM1 CONFIRM &nbsp;&nbsp;&nbsp;
+      BOTH LOCKED = FIGHT
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div class="screen hidden" id="results">
+    <div class="winner-wins">WINNER</div>
+    <div class="winner-name" id="winnerName">—</div>
+    <button class="btn" id="rematchBtn">REMATCH</button>
+    <button class="btn" id="csBtn">CHARACTER SELECT</button>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ════════════════════════════════════════════════════════════════════
+// CONSTANTS
+// ════════════════════════════════════════════════════════════════════
+const W = 1280, H = 720;
+const FIXED_DT  = 1 / 60;
+const STOCKS    = 3;
+const GRAVITY   = 0.65;           // base gravity per fixed frame
+const MAX_FALL  = 20;
+const GROUND_FRICTION = 0.72;
+const AIR_FRICTION    = 0.955;
+const WAVEDASH_FRICTION = 0.76;
+const BLAST = { l: -260, r: 1540, t: -180, b: 820 };
+
+// Debug toggle (press H in-game)
+let DEBUG_HITBOXES = false;
+
+// ════════════════════════════════════════════════════════════════════
+// INPUT SYSTEM
+// ════════════════════════════════════════════════════════════════════
+const KEYS = {};
+const JUST = {};   // pressed this physics tick
+const PREV = {};   // state last physics tick
+
+window.addEventListener('keydown', e => {
+  if (!KEYS[e.code]) JUST[e.code] = true;
+  KEYS[e.code] = true;
+  if (e.code === 'KeyH') DEBUG_HITBOXES = !DEBUG_HITBOXES;
+  if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))
+    e.preventDefault();
+});
+window.addEventListener('keyup',   e => { KEYS[e.code] = false; });
+
+function clearJust() { for (const k in JUST) delete JUST[k]; }
+
+// Keyboard bindings per player
+const KB = [
+  { left:'KeyA', right:'KeyD', up:'KeyW', down:'KeyS',
+    attack:'KeyJ', special:'KeyK', shield:'KeyL', grab:'Semicolon', jump2:'KeyI' },
+  { left:'ArrowLeft', right:'ArrowRight', up:'ArrowUp', down:'ArrowDown',
+    attack:'Numpad1', special:'Numpad2', shield:'Numpad3', grab:'Numpad0', jump2:'Numpad5' },
+];
+
+function getInput(pidx) {
+  const b = KB[pidx];
+  const gp = getGamepad(pidx);
+  return {
+    left:   KEYS[b.left]    || gp.left,
+    right:  KEYS[b.right]   || gp.right,
+    up:     KEYS[b.up]      || gp.up,
+    down:   KEYS[b.down]    || gp.down,
+    attack: KEYS[b.attack]  || gp.attack,
+    special:KEYS[b.special] || gp.special,
+    shield: KEYS[b.shield]  || gp.shield,
+    grab:   KEYS[b.grab]    || gp.grab,
+    jump2:  KEYS[b.jump2]   || gp.jump2,
+    // just-pressed
+    attackJ: JUST[b.attack]  || gp.attackJ,
+    specialJ:JUST[b.special] || gp.specialJ,
+    shieldJ: JUST[b.shield]  || gp.shieldJ,
+    grabJ:   JUST[b.grab]    || gp.grabJ,
+    jumpJ:   (JUST[b.up] || JUST[b.jump2]) || gp.jumpJ,
+  };
+}
+
+// Gamepad API
+const GP_PREV = [{}, {}];
+function getGamepad(pidx) {
+  const gps = navigator.getGamepads ? navigator.getGamepads() : [];
+  const gp  = gps[pidx];
+  if (!gp) return { left:false, right:false, up:false, down:false, attack:false, special:false, shield:false, grab:false, jump2:false, attackJ:false, specialJ:false, shieldJ:false, grabJ:false, jumpJ:false };
+  const ax0 = gp.axes[0] || 0;
+  const ax1 = gp.axes[1] || 0;
+  const left   = ax0 < -0.35 || (gp.buttons[14]?.pressed ?? false);
+  const right  = ax0 >  0.35 || (gp.buttons[15]?.pressed ?? false);
+  const up     = ax1 < -0.35 || (gp.buttons[12]?.pressed ?? false);
+  const down   = ax1 >  0.35 || (gp.buttons[13]?.pressed ?? false);
+  const attack  = gp.buttons[0]?.pressed ?? false;
+  const special = gp.buttons[2]?.pressed ?? false;
+  const shield  = gp.buttons[4]?.pressed || gp.buttons[5]?.pressed || gp.buttons[6]?.pressed || gp.buttons[7]?.pressed || false;
+  const grab    = gp.buttons[3]?.pressed ?? false;
+  const prev    = GP_PREV[pidx];
+  const attackJ  = attack  && !prev.attack;
+  const specialJ = special && !prev.special;
+  const shieldJ  = shield  && !prev.shield;
+  const grabJ    = grab    && !prev.grab;
+  const jumpJ    = up      && !prev.up;
+  GP_PREV[pidx] = { attack, special, shield, grab, up };
+  return { left, right, up, down, attack, special, shield, grab, jump2:false, attackJ, specialJ, shieldJ, grabJ, jumpJ };
+}
+
+// ════════════════════════════════════════════════════════════════════
+// STAGE DATA
+// ════════════════════════════════════════════════════════════════════
+const STAGE = {
+  bg: '#0d0d14',
+  platforms: [
+    { x: 180, y: 560, w: 920, h: 20, main: true  },  // main
+    { x: 190, y: 410, w: 240, h: 14, main: false },  // left
+    { x: 850, y: 410, w: 240, h: 14, main: false },  // right
+    { x: 520, y: 295, w: 240, h: 14, main: false },  // top
+  ],
+};
+
+// ════════════════════════════════════════════════════════════════════
+// MOVE DATABASE
+// ════════════════════════════════════════════════════════════════════
+// angle: degrees, 0=right, 90=up, 270=down (spike)
+// hitbox offsets are from fighter center, facing right (flipped for left)
+const BASE_MOVES = {
+  jab:     { dmg:3,  kb:2,  kbg:0.25, ang:45,  su:2,  act:[2,4],   tot:12, ll:0,  hb:{ox:32,oy:-22,w:40,h:28} },
+  ftilt:   { dmg:9,  kb:5,  kbg:0.70, ang:35,  su:5,  act:[5,8],   tot:22, ll:0,  hb:{ox:44,oy:-22,w:52,h:32} },
+  utilt:   { dmg:10, kb:6,  kbg:0.75, ang:87,  su:5,  act:[5,9],   tot:25, ll:0,  hb:{ox:0, oy:-62,w:54,h:46} },
+  dtilt:   { dmg:7,  kb:4,  kbg:0.55, ang:20,  su:4,  act:[4,7],   tot:20, ll:0,  hb:{ox:38,oy:0,  w:46,h:22} },
+  fsmash:  { dmg:18, kb:13, kbg:1.15, ang:28,  su:16, act:[16,19], tot:50, ll:0,  hb:{ox:58,oy:-22,w:66,h:44}, charged:true },
+  usmash:  { dmg:16, kb:12, kbg:1.05, ang:88,  su:10, act:[10,14], tot:44, ll:0,  hb:{ox:0, oy:-72,w:56,h:50} },
+  dsmash:  { dmg:13, kb:9,  kbg:0.85, ang:50,  su:7,  act:[7,11],  tot:36, ll:0,  hb:{ox:38,oy:-5, w:56,h:28} },
+  nair:    { dmg:7,  kb:5,  kbg:0.55, ang:45,  su:3,  act:[3,8],   tot:30, ll:18, hb:{ox:0, oy:-20,w:58,h:50} },
+  fair:    { dmg:12, kb:9,  kbg:0.88, ang:32,  su:6,  act:[6,11],  tot:34, ll:20, hb:{ox:46,oy:-20,w:56,h:42} },
+  bair:    { dmg:14, kb:10, kbg:0.95, ang:150, su:5,  act:[5,9],   tot:30, ll:18, hb:{ox:-50,oy:-20,w:56,h:42} },
+  uair:    { dmg:11, kb:9,  kbg:0.82, ang:88,  su:4,  act:[4,9],   tot:32, ll:18, hb:{ox:0, oy:-62,w:56,h:46} },
+  dair:    { dmg:15, kb:11, kbg:0.78, ang:270, su:8,  act:[8,12],  tot:36, ll:24, hb:{ox:0, oy:8,  w:46,h:40}, spike:true },
+  upB:     { dmg:8,  kb:8,  kbg:0.65, ang:82,  su:6,  act:[6,14],  tot:42, ll:30, hb:{ox:0, oy:-70,w:52,h:100}, recovery:true },
+  sideB:   { dmg:11, kb:9,  kbg:0.88, ang:22,  su:10, act:[10,15], tot:44, ll:20, hb:{ox:48,oy:-20,w:58,h:38} },
+};
+
+// Archetype stat multipliers
+const ARCH = {
+  light:  { dmg:0.85, kb:0.90, su:0.85, tot:0.85 },
+  heavy:  { dmg:1.35, kb:1.45, su:1.45, tot:1.30 },
+  medium: { dmg:1.00, kb:1.00, su:1.00, tot:1.00 },
+  fast:   { dmg:0.72, kb:0.80, su:0.68, tot:0.75 },
+};
+
+function buildMoves(arch) {
+  const m = ARCH[arch];
+  const out = {};
+  for (const [k, b] of Object.entries(BASE_MOVES)) {
+    const su = Math.max(1, Math.round(b.su * m.su));
+    out[k] = {
+      ...b,
+      dmg: Math.round(b.dmg * m.dmg),
+      kb:  +(b.kb * m.kb).toFixed(2),
+      kbg: b.kbg,
+      su,
+      act: b.act.map(f => Math.max(su, Math.round(f * m.su))),
+      tot: Math.max(su + 2, Math.round(b.tot * m.tot)),
+    };
+  }
+  return out;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// CHARACTER DATA  (8 fighters)
+// ════════════════════════════════════════════════════════════════════
+const CHARS = [
+  // ── Light / Floaty ──────────────────────────────────────────────
+  { id:0, name:'Ember',  color:'#FF69B4', arch:'light',  wt:78,  spd:7.5, airSpd:6.5, grav:0.40, maxFall:8,  jump:16, dj:15, ability:'fire',  tag:'FLOATY'   },
+  { id:1, name:'Wisp',   color:'#FF22EE', arch:'light',  wt:75,  spd:7.0, airSpd:7.0, grav:0.38, maxFall:7,  jump:17, dj:16, ability:'fire',  tag:'FLOATY'   },
+  // ── Heavy / Grappler ────────────────────────────────────────────
+  { id:2, name:'Blaze',  color:'#FF2200', arch:'heavy',  wt:135, spd:4.0, airSpd:2.5, grav:0.80, maxFall:18, jump:10, dj:9,  ability:'lava',  tag:'GRAPPLER' },
+  { id:3, name:'Forge',  color:'#CC4400', arch:'heavy',  wt:130, spd:4.5, airSpd:2.8, grav:0.76, maxFall:17, jump:11, dj:10, ability:'lava',  tag:'GRAPPLER' },
+  { id:4, name:'Crag',   color:'#885500', arch:'heavy',  wt:140, spd:3.5, airSpd:2.0, grav:0.84, maxFall:19, jump:9,  dj:8,  ability:'lava',  tag:'GRAPPLER' },
+  // ── Medium / All-Round ──────────────────────────────────────────
+  { id:5, name:'Frost',  color:'#4488FF', arch:'medium', wt:100, spd:5.5, airSpd:4.0, grav:0.60, maxFall:12, jump:13, dj:12, ability:'ice',   tag:'ALL-ROUND' },
+  { id:6, name:'Glacius',color:'#8844FF', arch:'medium', wt:105, spd:5.0, airSpd:3.8, grav:0.62, maxFall:13, jump:12, dj:11, ability:'ice',   tag:'ALL-ROUND' },
+  // ── Small / Fast ────────────────────────────────────────────────
+  { id:7, name:'Zephyr', color:'#00FF44', arch:'fast',   wt:60,  spd:11,  airSpd:5.0, grav:0.70, maxFall:20, jump:12, dj:11, ability:'dash',  tag:'FAST FALL', fastFall:true },
+];
+
+// Pre-build move sets
+CHARS.forEach(c => { c.moves = buildMoves(c.arch); });
+
+// ════════════════════════════════════════════════════════════════════
+// ACTIVE-GAME STATE
+// ════════════════════════════════════════════════════════════════════
+const game = {
+  state: 'title',   // title | charselect | fight | results
+  fighters: [],
+  projectiles: [],
+  effects: [],
+  lavaPoolList: [],
+  frame: 0,
+};
+
+// ════════════════════════════════════════════════════════════════════
+// FIGHTER CLASS
+// ════════════════════════════════════════════════════════════════════
+class Fighter {
+  constructor(charData, pidx, startX) {
+    this.data    = charData;
+    this.pidx    = pidx;
+    this.x       = startX;
+    this.y       = 460;
+    this.vx      = 0;
+    this.vy      = 0;
+    this.facing  = pidx === 0 ? 1 : -1;  // 1=right, -1=left
+    this.onGround= false;
+    this.stocks  = STOCKS;
+    this.percent = 0;
+
+    // State machine
+    this.state      = 'idle';  // idle|run|jump|fall|fastfall|land|landlag|crouch|
+                                // attack_ground|attack_aerial|airdodge|wavedash|wavedashspot|
+                                // shield|roll|grab|grabbed|pummel|hit|tumble|
+                                // tech|techroll|hardkd|getup|dead|respawn
+    this.stateTimer = 0;       // countdown timer (frames)
+    this.jumpCount  = 0;       // 0=grounded,1=first,2=double
+
+    // Current move being performed
+    this.currentMove = null;
+    this.moveTimer   = 0;      // counts up from 0 to move.tot
+    this.hitIds      = new Set(); // prevent multi-hit per swing
+    this.lCancelBuf  = 0;      // L-cancel buffer (frames)
+    this.lCanceled   = false;
+
+    // Tech system
+    this.techBuffer  = 0;      // frames of tech window
+
+    // Hitstun / invincibility
+    this.hitstun     = 0;
+    this.invincible  = 0;
+
+    // Ability cooldown
+    this.abilityCool = 0;
+
+    // Momentum carry — store pre-jump vx for carry
+    this.runMomentum = 0;
+
+    // Respawn timer
+    this.respawnTimer= 0;
+    this.respawnX    = startX;
+
+    // Airdodge
+    this.canAirdodge = true;
+    this.airdodgeTimer = 0;
+
+    // Charge (for fsmash)
+    this.chargeFrames  = 0;
+    this.chargingSmash = false;
+
+    // Grab state
+    this.grabTarget  = null;
+    this.grabbedBy   = null;
+    this.pummels     = 0;
+  }
+
+  get isAerial() {
+    return ['jump','fall','fastfall','airdodge','attack_aerial'].includes(this.state);
+  }
+
+  get alive() { return this.state !== 'dead' && this.state !== 'respawn'; }
+
+  // ── Hurtbox ──────────────────────────────────────────────────────
+  getHurtbox() {
+    const crouching = this.state === 'crouch';
+    const aerial    = this.isAerial;
+    if (crouching) return { x: this.x - 20, y: this.y - 26, w: 40, h: 36 };
+    if (aerial)    return { x: this.x - 25, y: this.y - 46, w: 50, h: 62 };
+    return              { x: this.x - 20, y: this.y - 42, w: 40, h: 52 };
+  }
+
+  // ── Active hitbox ─────────────────────────────────────────────────
+  getHitbox() {
+    const mv = this.currentMove;
+    if (!mv) return null;
+    const isActive = this.moveTimer >= mv.act[0] && this.moveTimer <= mv.act[1];
+    if (!isActive) return null;
+    const hb = mv.hb;
+    const ox = hb.ox * this.facing;
+    return {
+      x: this.x + ox - hb.w / 2,
+      y: this.y + hb.oy,
+      w: hb.w, h: hb.h,
+      move: mv,
+    };
+  }
+
+  // ── Physics update (called every fixed tick) ──────────────────────
+  update(inp, fighters, projectiles, lavaPoolList) {
+    if (this.state === 'dead') { this.tickRespawn(); return; }
+    if (this.state === 'respawn') { this.tickRespawnFreeze(); return; }
+
+    this.stateTimer = Math.max(0, this.stateTimer - 1);
+    if (this.hitstun   > 0) this.hitstun--;
+    if (this.invincible > 0) this.invincible--;
+    if (this.abilityCool > 0) this.abilityCool--;
+    if (this.lCancelBuf > 0) this.lCancelBuf--;
+    if (this.techBuffer  > 0) this.techBuffer--;
+
+    this.applyGravity();
+    this.handleInput(inp, fighters, projectiles);
+    this.updateMovement();
+    this.doCollision();
+    this.updateAttack(fighters);
+    this.checkLavaPools(lavaPoolList);
+    this.checkBlastZone();
+  }
+
+  applyGravity() {
+    if (this.onGround) return;
+    const grav = this.data.grav;
+    const gravMult = this.state === 'airdodge' ? 0.3 : 1.0;
+    this.vy += GRAVITY * grav * gravMult;
+
+    const mf = this.state === 'fastfall' ? this.data.maxFall * 1.6 : this.data.maxFall;
+    if (this.vy > mf) this.vy = mf;
+  }
+
+  handleInput(inp, fighters, projectiles) {
+    if (this.hitstun > 0) {
+      // Can buffer tech during hitstun
+      if (inp.shieldJ) this.techBuffer = 22;
+      return;
+    }
+
+    const st = this.state;
+
+    // ── Shield / Airdodge ────────────────────────────────────────
+    if (inp.shieldJ) {
+      if (this.onGround && !['shield','roll','attack_ground','landlag','wavedash','grab'].includes(st)) {
+        this.state = 'shield'; this.stateTimer = 3;
+      } else if (!this.onGround && this.canAirdodge && !['airdodge'].includes(st)) {
+        this.startAirdodge(inp);
+      }
+    }
+
+    // ── Jump ─────────────────────────────────────────────────────
+    if (inp.jumpJ && !['attack_ground','landlag','shield','grab','grabbed'].includes(st)) {
+      this.tryJump();
+    }
+
+    // ── Fast fall ────────────────────────────────────────────────
+    if (inp.down && !this.onGround && this.vy > 0 && st !== 'airdodge') {
+      this.state = 'fastfall';
+    }
+
+    // ── Shield → roll / spotdodge ─────────────────────────────────
+    if (st === 'shield' && this.stateTimer === 0) {
+      if (inp.left || inp.right) {
+        this.facing = inp.left ? -1 : 1;
+        this.state = 'roll'; this.stateTimer = 20;
+        this.vx = this.facing * this.data.spd * 0.8;
+        this.invincible = 16;
+      } else if (!inp.shield) {
+        this.state = 'idle';
+      }
+    }
+
+    // ── Roll / tech-roll update ───────────────────────────────────
+    if (['roll','techroll'].includes(st)) {
+      this.vx *= 0.88;
+      if (this.stateTimer === 0) { this.state = 'idle'; this.vx = 0; }
+      return;
+    }
+
+    // ── Grab ─────────────────────────────────────────────────────
+    if (inp.grabJ && this.onGround && !['attack_ground','landlag','shield','grab','grabbed'].includes(st)) {
+      this.startGrab(fighters);
+    }
+    if (st === 'grab') {
+      if (this.grabTarget) {
+        this.grabTarget.x = this.x + this.facing * 30;
+        this.grabTarget.y = this.y - 10;
+        if (inp.attackJ) { this.pummel(); }
+        if (inp.up)    { this.throwTarget('up',    fighters, projectiles); }
+        else if (inp.down)  { this.throwTarget('down',  fighters, projectiles); }
+        else if (inp.left)  { this.throwTarget(inp.left  ? (this.facing === -1 ? 'forward' : 'back') : 'forward', fighters, projectiles); }
+        else if (inp.right) { this.throwTarget(this.facing === 1 ? 'forward' : 'back', fighters, projectiles); }
+      } else { this.state = 'idle'; }
+    }
+    if (st === 'grabbed') return;  // no input while grabbed
+
+    // ── Movement ─────────────────────────────────────────────────
+    if (!['attack_ground','attack_aerial','airdodge','wavedash','wavedashspot',
+          'roll','techroll','shield','grab','grabbed','landlag'].includes(st)) {
+      this.handleMove(inp);
+    }
+
+    // ── Attacks ──────────────────────────────────────────────────
+    if (!['attack_ground','attack_aerial','airdodge','wavedash','wavedashspot',
+          'roll','techroll','shield','grab','grabbed','landlag','hitstun'].includes(st)) {
+      this.handleAttackInput(inp, projectiles);
+    }
+  }
+
+  handleMove(inp) {
+    const st = this.state;
+    const spd = this.onGround ? this.data.spd : this.data.airSpd;
+
+    if (inp.left) {
+      this.vx = Math.max(this.vx - spd * 0.22, -spd);
+      if (this.onGround) { this.facing = -1; this.state = 'run'; }
+    } else if (inp.right) {
+      this.vx = Math.min(this.vx + spd * 0.22, spd);
+      if (this.onGround) { this.facing = 1; this.state = 'run'; }
+    } else {
+      if (this.onGround && st === 'run') {
+        this.state = 'idle';
+      }
+    }
+
+    // Crouch
+    if (inp.down && this.onGround && !inp.left && !inp.right) {
+      this.state = 'crouch';
+    } else if (this.state === 'crouch' && (!inp.down || inp.left || inp.right)) {
+      this.state = 'idle';
+    }
+  }
+
+  handleAttackInput(inp, projectiles) {
+    // Smash charge
+    if (this.onGround && inp.attack && inp.right && !this.chargingSmash &&
+        !['run','crouch'].includes(this.state)) {
+      this.startAttack('fsmash', projectiles);
+    } else if (inp.attackJ) {
+      if (!this.onGround) {
+        const mv = inp.left || inp.right ? (this.facing === (inp.right ? 1:-1) ? 'fair' : 'bair')
+                  : inp.up ? 'uair' : inp.down ? 'dair' : 'nair';
+        this.startAttack(mv, projectiles);
+      } else {
+        const mv = inp.up ? 'utilt' : inp.down ? 'dtilt' : 'jab';
+        this.startAttack(mv, projectiles);
+      }
+    } else if (inp.specialJ) {
+      if (inp.up) {
+        this.startAttack('upB', projectiles);
+      } else if (inp.left || inp.right) {
+        this.startAttack('sideB', projectiles);
+      } else {
+        this.useAbility(projectiles);
+      }
+    }
+
+    // L-cancel buffer — press shield during aerial attack
+    if (!this.onGround && this.state === 'attack_aerial' && inp.shield) {
+      this.lCancelBuf = 8;
+    }
+  }
+
+  tryJump() {
+    if (this.jumpCount === 0 && this.onGround) {
+      // First jump — carry run momentum
+      this.runMomentum = this.vx;
+      this.vy = -this.data.jump;
+      this.vx = this.vx * 0.8; // momentum carry
+      this.onGround = false;
+      this.jumpCount = 1;
+      this.state = 'jump';
+      this.canAirdodge = true;
+    } else if (this.jumpCount === 1) {
+      // Double jump
+      this.vy = -this.data.dj;
+      this.jumpCount = 2;
+      this.state = 'jump';
+    }
+  }
+
+  startAirdodge(inp) {
+    const dx = inp.left ? -1 : inp.right ? 1 : 0;
+    const dy = inp.up   ? -1 : inp.down  ? 1 : 0;
+    const mag = Math.sqrt(dx*dx + dy*dy) || 1;
+    this.vx = (dx / mag) * this.data.airSpd * 1.6;
+    this.vy = dy === 0 ? 2.0 : (dy / mag) * this.data.airSpd * 1.6;
+    this.state = 'airdodge';
+    this.airdodgeTimer = 28;
+    this.invincible = 20;
+    this.canAirdodge = false;
+    this.stateTimer = 28;
+  }
+
+  startAttack(moveName, projectiles) {
+    const mv = this.data.moves[moveName];
+    if (!mv) return;
+    this.currentMove = mv;
+    this.moveTimer   = 0;
+    this.hitIds.clear();
+    this.lCanceled   = false;
+    this.state = this.onGround ? 'attack_ground' : 'attack_aerial';
+    this.stateTimer  = mv.tot;
+
+    // upB — recovery impulse
+    if (moveName === 'upB') {
+      this.vy = -(this.data.jump * 1.5);
+      this.vx *= 0.3;
+    }
+    // sideB — dash impulse
+    if (moveName === 'sideB') {
+      this.vx = this.facing * this.data.spd * 1.4;
+    }
+    // Neutral ability fires projectile — handled in useAbility
+  }
+
+  updateAttack(fighters) {
+    const st = this.state;
+    if (st !== 'attack_ground' && st !== 'attack_aerial') return;
+
+    this.moveTimer++;
+
+    const hb = this.getHitbox();
+    if (hb) {
+      for (const f of fighters) {
+        if (f === this || !f.alive || f.invincible > 0 || this.hitIds.has(f.pidx)) continue;
+        if (rectsOverlap(hb, f.getHurtbox())) {
+          this.hitIds.add(f.pidx);
+          applyHit(this, f, hb.move);
+        }
+      }
+    }
+
+    if (this.moveTimer >= (this.currentMove?.tot ?? 0)) {
+      this.currentMove = null;
+      this.moveTimer = 0;
+      this.state = this.onGround ? 'idle' : 'fall';
+    }
+  }
+
+  updateMovement() {
+    const st = this.state;
+    // Airdodge timer
+    if (st === 'airdodge') {
+      this.airdodgeTimer--;
+      if (this.airdodgeTimer <= 0 && !this.onGround) {
+        this.state = 'fall';
+      }
+    }
+    // Tech-in-place animation
+    if (st === 'tech' && this.stateTimer === 0) this.state = 'idle';
+    // Hard knockdown
+    if (st === 'hardkd' && this.stateTimer === 0) this.state = 'getup';
+    if (st === 'getup'  && this.stateTimer === 0) { this.state = 'idle'; this.stateTimer = 20; this.invincible = 20; }
+    // Land state → idle
+    if (st === 'land' && this.stateTimer === 0) this.state = 'idle';
+    // Landing lag
+    if (st === 'landlag' && this.stateTimer === 0) { this.state = 'idle'; this.lCanceled = false; }
+    // Wavedash slide
+    if (st === 'wavedash') {
+      this.vx *= WAVEDASH_FRICTION;
+      if (this.stateTimer === 0 || Math.abs(this.vx) < 0.4) {
+        this.vx = 0; this.state = 'idle';
+      }
+    }
+    if (st === 'wavedashspot') {
+      if (this.stateTimer === 0) { this.state = 'idle'; }
+    }
+
+    // Apply friction
+    if (this.onGround && !['run','roll','techroll','wavedash','wavedashspot'].includes(st)) {
+      this.vx *= GROUND_FRICTION;
+      if (Math.abs(this.vx) < 0.2) this.vx = 0;
+    }
+    if (!this.onGround) {
+      if (!['airdodge','attack_aerial','upB'].includes(st)) {
+        this.vx *= AIR_FRICTION;
+      }
+    }
+
+    this.x += this.vx;
+    this.y += this.vy;
+  }
+
+  doCollision() {
+    const prevOnGround = this.onGround;
+    this.onGround = false;
+    let landed = false;
+    let landedPlat = null;
+
+    for (const p of STAGE.platforms) {
+      // Only collide from above (one-way platforms)
+      if (this.vy >= 0 &&
+          this.x > p.x && this.x < p.x + p.w &&
+          this.y <= p.y + p.h && this.y + this.vy + 4 >= p.y) {
+        this.y = p.y;
+        this.onGround = true;
+        landed = !prevOnGround;
+        landedPlat = p;
+      }
+    }
+
+    if (this.onGround) {
+      if (this.vy > 0) this.vy = 0;
+      this.jumpCount = 0;
+      this.canAirdodge = true;
+      this.techBuffer = 0;
+
+      if (landed) this.handleLanding(landedPlat);
+    }
+
+    // Stage horizontal bounds (soft — push back slightly)
+    if (this.x < BLAST.l + 60) this.vx = Math.abs(this.vx) * 0.5;
+    if (this.x > BLAST.r - 60) this.vx = -Math.abs(this.vx) * 0.5;
+  }
+
+  handleLanding(plat) {
+    const st = this.state;
+
+    // ── Wavedash: airdodge into ground ───────────────────────────
+    if (st === 'airdodge') {
+      spawnTechMsg(`P${this.pidx + 1} WAVEDASH`, this.data.color);
+      if (Math.abs(this.vx) > 1.0) {
+        this.state = 'wavedash';
+        this.stateTimer = 18;
+      } else {
+        this.state = 'wavedashspot';
+        this.stateTimer = 10;
+        this.vx = 0;
+      }
+      this.vy = 0;
+      return;
+    }
+
+    // ── Tech attempt on landing from tumble ──────────────────────
+    if (st === 'tumble') {
+      if (this.techBuffer > 0) {
+        const dir = KEYS[KB[this.pidx].left] ? -1 : KEYS[KB[this.pidx].right] ? 1 : 0;
+        if (dir === 0) {
+          spawnTechMsg(`P${this.pidx + 1} TECH`, this.data.color);
+          this.state = 'tech'; this.stateTimer = 20; this.invincible = 20;
+          this.vx *= 0.1; this.vy = 0;
+        } else {
+          spawnTechMsg(`P${this.pidx + 1} TECH ROLL`, this.data.color);
+          this.state = 'techroll'; this.stateTimer = 22; this.invincible = 18;
+          this.vx = dir * this.data.spd * 0.85; this.vy = 0; this.facing = dir;
+        }
+      } else {
+        this.state = 'hardkd'; this.stateTimer = 26;
+        this.vx *= 0.3; this.vy = 0;
+      }
+      return;
+    }
+
+    // ── L-Cancel: aerial attack into ground ──────────────────────
+    if (st === 'attack_aerial' && this.currentMove) {
+      const ll = this.currentMove.ll;
+      this.lCanceled = this.lCancelBuf > 0;
+      if (this.lCanceled) spawnTechMsg(`P${this.pidx + 1} L-CANCEL`, this.data.color);
+      this.stateTimer  = this.lCanceled ? Math.ceil(ll / 2) : ll;
+      this.state       = 'landlag';
+      this.currentMove = null; this.moveTimer = 0;
+      this.vy = 0;
+      return;
+    }
+
+    this.state = 'land'; this.stateTimer = 4;
+    this.vy = 0;
+  }
+
+  // ── Ability / Neutral-B ──────────────────────────────────────────
+  useAbility(projectiles) {
+    if (this.abilityCool > 0) return;
+    const ab = this.data.ability;
+    if (ab === 'fire') {
+      this.abilityCool = 70;
+      projectiles.push(new Projectile('fireball', this.x, this.y - 20,
+        this.facing * 9, -1, this.pidx, this.data.color));
+      this.state = 'attack_ground'; this.stateTimer = 22;
+    } else if (ab === 'ice') {
+      this.abilityCool = 80;
+      projectiles.push(new Projectile('iceshard', this.x, this.y - 20,
+        this.facing * 10, -0.5, this.pidx, '#88CCFF'));
+      this.state = 'attack_ground'; this.stateTimer = 20;
+    } else if (ab === 'lava') {
+      this.abilityCool = 120;
+      game.lavaPoolList.push(new LavaPool(this.x + this.facing * 60, this.y));
+      this.state = 'attack_ground'; this.stateTimer = 28;
+    } else if (ab === 'dash') {
+      // Zephyr: speed burst
+      this.abilityCool = 55;
+      this.vx = this.facing * this.data.spd * 2.2;
+      this.invincible = 8;
+      spawnTechMsg('DASH BURST!', this.data.color);
+    }
+  }
+
+  // ── Grab / Pummel / Throw ────────────────────────────────────────
+  startGrab(fighters) {
+    for (const f of fighters) {
+      if (f === this || !f.alive || f.invincible > 0) continue;
+      const dx = Math.abs(f.x - this.x), dy = Math.abs(f.y - this.y);
+      if (dx < 70 && dy < 50) {
+        this.state = 'grab'; this.stateTimer = 60;
+        f.state = 'grabbed'; f.grabbedBy = this;
+        this.grabTarget = f;
+        break;
+      }
+    }
+  }
+
+  pummel() {
+    if (!this.grabTarget) return;
+    this.grabTarget.percent += 3;
+    this.grabTarget.hitstun = 14;
+    spawnEffect(this.grabTarget.x, this.grabTarget.y - 20, 'hit', '#fff');
+    updateHUD();
+  }
+
+  throwTarget(dir, fighters, projectiles) {
+    const t = this.grabTarget;
+    if (!t) return;
+    t.state = 'tumble'; t.grabbedBy = null;
+    this.grabTarget = null; this.state = 'idle';
+    const mv = { dmg: 8, kb: 10, kbg: 0.9, ang: dir === 'up' ? 88 : dir === 'down' ? 270 : dir === 'forward' ? 30 : 150 };
+    applyHit(this, t, mv);
+  }
+
+  checkLavaPools(pools) {
+    for (const p of pools) {
+      if (this.x > p.x - p.r && this.x < p.x + p.r && this.y >= p.y - 10 && this.y <= p.y + 5) {
+        if (game.frame % 20 === 0 && this.invincible === 0 && this.alive) {
+          this.percent += 2;
+          spawnEffect(this.x, this.y - 20, 'hit', '#FF4400');
+          updateHUD();
+        }
+      }
+    }
+  }
+
+  checkBlastZone() {
+    if (this.x < BLAST.l || this.x > BLAST.r || this.y < BLAST.t || this.y > BLAST.b) {
+      this.die();
+    }
+  }
+
+  die() {
+    this.stocks--;
+    this.state = 'dead';
+    this.respawnTimer = 100;
+    this.vx = 0; this.vy = 0;
+    updateHUD();
+    spawnEffect(this.x, this.y, 'blast', this.data.color);
+    if (this.stocks <= 0) {
+      endMatch();
+    }
+  }
+
+  tickRespawn() {
+    this.respawnTimer--;
+    if (this.respawnTimer <= 0) {
+      this.x = this.respawnX; this.y = 200;
+      this.vx = 0; this.vy = 0;
+      this.percent = 0;
+      this.state = 'respawn'; this.stateTimer = 90;
+      this.invincible = 90;
+      this.jumpCount = 0; this.canAirdodge = true;
+      updateHUD();
+    }
+  }
+
+  tickRespawnFreeze() {
+    this.stateTimer--;
+    if (this.stateTimer <= 0) this.state = 'idle';
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// HIT APPLICATION
+// ════════════════════════════════════════════════════════════════════
+function applyHit(attacker, defender, move) {
+  // Knockback: currentPercent * (1 + kbGrowth) + baseKB, weight-adjusted
+  const rawKB = (defender.percent * (1 + move.kbg) + move.kb) * (100 / defender.data.wt);
+  const angleRad = (move.ang * Math.PI) / 180;
+  const flip = attacker.facing;
+  // Flip x-component based on attacker facing; y is negative=up in canvas
+  defender.vx = Math.cos(angleRad) * flip * rawKB;
+  defender.vy = -Math.sin(angleRad) * rawKB;
+
+  // Hitstun
+  defender.hitstun = Math.floor(rawKB * 0.42 + 8);
+
+  defender.percent += move.dmg;
+  defender.state    = rawKB > 3.5 ? 'tumble' : 'hit';
+  defender.stateTimer = rawKB > 3.5 ? defender.hitstun : 12;
+  defender.onGround = false;
+
+  spawnEffect(defender.x, defender.y - 20, 'hit', attacker.data.color);
+  updateHUD();
+}
+
+// ════════════════════════════════════════════════════════════════════
+// PROJECTILE  (fireball / iceshard)
+// ════════════════════════════════════════════════════════════════════
+class Projectile {
+  constructor(type, x, y, vx, vy, ownerIdx, color) {
+    this.type     = type;
+    this.x = x; this.y = y;
+    this.vx = vx; this.vy = vy;
+    this.owner    = ownerIdx;
+    this.color    = color;
+    this.alive    = true;
+    this.age      = 0;
+    this.hitIds   = new Set();
+    this.r        = type === 'fireball' ? 10 : 8;
+    this.maxAge   = type === 'fireball' ? 80 : 70;
+  }
+
+  update(fighters) {
+    this.x += this.vx;
+    this.y += this.vy;
+    this.age++;
+    if (this.age > this.maxAge) { this.alive = false; return; }
+    if (this.x < 0 || this.x > W || this.y < 0 || this.y > H) { this.alive = false; return; }
+
+    for (const f of fighters) {
+      if (f.pidx === this.owner || !f.alive || f.invincible > 0 || this.hitIds.has(f.pidx)) continue;
+      const hb = f.getHurtbox();
+      if (circRectOverlap(this.x, this.y, this.r, hb)) {
+        this.hitIds.add(f.pidx);
+        if (this.type === 'fireball') {
+          // Apply hit + DOT debuff
+          applyHit({ facing: Math.sign(this.vx), data: { color: this.color } }, f,
+            { dmg: 8, kb: 5, kbg: 0.5, ang: 30 });
+          f.dotFrames = (f.dotFrames || 0) + 180; // 3s DOT
+          f.dotColor  = '#FF4400';
+        } else if (this.type === 'iceshard') {
+          applyHit({ facing: Math.sign(this.vx), data: { color: '#88CCFF' } }, f,
+            { dmg: 6, kb: 3, kbg: 0.3, ang: 30 });
+          f.frozen = 90; // freeze 90 frames
+          f.hitstun = 90;
+          spawnTechMsg('FROZEN!', '#88CCFF');
+        }
+        this.alive = false;
+      }
+    }
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// LAVA POOL
+// ════════════════════════════════════════════════════════════════════
+class LavaPool {
+  constructor(x, y) {
+    this.x = x; this.y = y;
+    this.r = 70;
+    this.life = 480; // 8 seconds
+    this.alive = true;
+    this.pulse = 0;
+  }
+  update() {
+    this.life--;
+    this.pulse++;
+    if (this.life <= 0) this.alive = false;
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// EFFECTS
+// ════════════════════════════════════════════════════════════════════
+function spawnEffect(x, y, type, color) {
+  game.effects.push({ x, y, type, color, life: 20, maxLife: 20 });
+}
+
+function spawnTechMsg(text, color) {
+  const feed = document.getElementById('techFeed');
+  const el = document.createElement('div');
+  el.className = 'tech-msg';
+  el.textContent = text;
+  el.style.background = color + '22';
+  el.style.color = color;
+  el.style.border = `1px solid ${color}44`;
+  feed.appendChild(el);
+  setTimeout(() => el.remove(), 1400);
+}
+
+// ════════════════════════════════════════════════════════════════════
+// COLLISION HELPERS
+// ════════════════════════════════════════════════════════════════════
+function rectsOverlap(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x &&
+         a.y < b.y + b.h && a.y + a.h > b.y;
+}
+function circRectOverlap(cx, cy, r, rect) {
+  const nearX = Math.max(rect.x, Math.min(cx, rect.x + rect.w));
+  const nearY = Math.max(rect.y, Math.min(cy, rect.y + rect.h));
+  const dx = cx - nearX, dy = cy - nearY;
+  return dx*dx + dy*dy < r*r;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// HUD DOM UPDATE
+// ════════════════════════════════════════════════════════════════════
+function updateHUD() {
+  for (let i = 0; i < 2; i++) {
+    const f = game.fighters[i];
+    if (!f) continue;
+    document.getElementById(`p${i+1}pct`).innerHTML =
+      `${Math.floor(f.percent)}<span style="font-size:1.4rem">%</span>`;
+    const stocksEl = document.getElementById(`p${i+1}stocks`);
+    stocksEl.innerHTML = '';
+    for (let s = 0; s < STOCKS; s++) {
+      const dot = document.createElement('div');
+      dot.className = 'stock-dot ' + (s < f.stocks ? 'alive' : 'dead');
+      dot.style.background = s < f.stocks ? f.data.color : '#333';
+      stocksEl.appendChild(dot);
+    }
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// DOT (damage over time) TICK
+// ════════════════════════════════════════════════════════════════════
+function tickDOTs() {
+  for (const f of game.fighters) {
+    if (f.dotFrames > 0) {
+      f.dotFrames--;
+      if (game.frame % 30 === 0) {
+        f.percent += 1.5;
+        spawnEffect(f.x, f.y - 30, 'dot', f.dotColor || '#FF4400');
+        updateHUD();
+      }
+    }
+    if (f.frozen > 0) {
+      f.frozen--;
+      f.vx *= 0.0; f.vy *= 0.0; // full stop
+    }
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// RENDERER
+// ════════════════════════════════════════════════════════════════════
+const canvas = document.getElementById('gc');
+const ctx    = canvas.getContext('2d');
+
+function render() {
+  ctx.fillStyle = STAGE.bg;
+  ctx.fillRect(0, 0, W, H);
+
+  drawStage();
+  drawLavaPools();
+  drawProjectiles();
+  drawFighters();
+  drawEffects();
+  if (DEBUG_HITBOXES) drawDebugHitboxes();
+  drawDebugInfo();
+}
+
+function drawStage() {
+  for (const p of STAGE.platforms) {
+    // Platform top edge glow
+    ctx.save();
+    ctx.shadowColor = p.main ? '#334' : '#223';
+    ctx.shadowBlur  = 12;
+    ctx.fillStyle   = p.main ? '#1a1a2e' : '#151525';
+    ctx.fillRect(p.x, p.y, p.w, p.h + (p.main ? 60 : 8));
+    // Top edge highlight
+    ctx.fillStyle = p.main ? '#4455aa' : '#334488';
+    ctx.fillRect(p.x, p.y, p.w, 3);
+    ctx.restore();
+  }
+
+  // Blast zone indicator (faint dashes)
+  ctx.save();
+  ctx.strokeStyle = '#ff0000';
+  ctx.globalAlpha = 0.08;
+  ctx.setLineDash([8, 14]);
+  ctx.lineWidth = 1;
+  ctx.strokeRect(BLAST.l + 260, BLAST.t + 180, (BLAST.r - BLAST.l) - 520, (BLAST.b - BLAST.t) - 360);
+  ctx.restore();
+}
+
+// ── Stick figure ──────────────────────────────────────────────────
+function drawFighter(f) {
+  if (f.state === 'dead') return;
+
+  const alpha = f.invincible > 0 ? (Math.floor(f.invincible / 4) % 2 === 0 ? 0.3 : 0.9) : 1;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+
+  const col   = f.data.color;
+  const x     = f.x;
+  const y     = f.y;   // y is feet position
+  const face  = f.facing;
+
+  // Pose joints (relative to foot center)
+  const pose = getPose(f);
+  const joints = transformPose(pose, x, y, face);
+
+  ctx.strokeStyle = col;
+  ctx.lineCap     = 'round';
+  ctx.lineJoin    = 'round';
+
+  // Outline (shadow for visibility)
+  ctx.shadowColor = col;
+  ctx.shadowBlur  = 6;
+
+  // Body
+  drawLimb(ctx, joints, 'shoulder', 'hip', 3);
+  // Head
+  ctx.beginPath();
+  ctx.arc(joints.head.x, joints.head.y, 10, 0, Math.PI * 2);
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+  // Arms
+  drawLimb(ctx, joints, 'shoulder', 'lElbow', 2.5);
+  drawLimb(ctx, joints, 'lElbow',   'lWrist', 2.5);
+  drawLimb(ctx, joints, 'shoulder', 'rElbow', 2.5);
+  drawLimb(ctx, joints, 'rElbow',   'rWrist', 2.5);
+  // Legs
+  drawLimb(ctx, joints, 'hip', 'lKnee', 3);
+  drawLimb(ctx, joints, 'lKnee', 'lAnkle', 3);
+  drawLimb(ctx, joints, 'hip', 'rKnee', 3);
+  drawLimb(ctx, joints, 'rKnee', 'rAnkle', 3);
+
+  // DOT flame effect
+  if (f.dotFrames > 0) {
+    ctx.shadowColor = '#FF4400'; ctx.shadowBlur = 18;
+    ctx.strokeStyle = '#FF6600'; ctx.lineWidth = 1.5;
+    for (let i = 0; i < 4; i++) {
+      const ox = (Math.random() - 0.5) * 20;
+      ctx.beginPath();
+      ctx.moveTo(x + ox, y - 48);
+      ctx.lineTo(x + ox, y - 48 - 10 - Math.random() * 14);
+      ctx.stroke();
+    }
+  }
+  // Frozen overlay
+  if (f.frozen > 0) {
+    ctx.fillStyle = 'rgba(136,200,255,0.18)';
+    ctx.beginPath(); ctx.arc(x, y - 25, 32, 0, Math.PI * 2); ctx.fill();
+  }
+
+  ctx.restore();
+}
+
+function drawLimb(ctx, joints, a, b, lw) {
+  const ja = joints[a], jb = joints[b];
+  if (!ja || !jb) return;
+  ctx.lineWidth = lw;
+  ctx.beginPath();
+  ctx.moveTo(ja.x, ja.y);
+  ctx.lineTo(jb.x, jb.y);
+  ctx.stroke();
+}
+
+function getPose(f) {
+  const st = f.state;
+  const t  = f.stateTimer;
+  const mv = f.currentMove;
+  const mt = f.moveTimer;
+
+  // Base standing pose
+  let p = {
+    head:    { x:  0, y: -52 },
+    shoulder:{ x:  0, y: -38 },
+    hip:     { x:  0, y: -18 },
+    lElbow:  { x: -16, y: -30 },
+    lWrist:  { x: -28, y: -20 },
+    rElbow:  { x:  16, y: -30 },
+    rWrist:  { x:  28, y: -20 },
+    lKnee:   { x: -10, y: -6 },
+    lAnkle:  { x: -12, y:  0 },
+    rKnee:   { x:  10, y: -6 },
+    rAnkle:  { x:  12, y:  0 },
+  };
+
+  if (st === 'run' || st === 'techroll' || st === 'roll') {
+    const cyc = (game.frame * 0.28) % (Math.PI * 2);
+    p.lKnee  = { x: -10 + Math.sin(cyc) * 12, y: -8 - Math.abs(Math.sin(cyc)) * 8 };
+    p.lAnkle = { x: -12 + Math.sin(cyc) * 14, y: -1 + Math.cos(cyc) * 3 };
+    p.rKnee  = { x:  10 - Math.sin(cyc) * 12, y: -8 + Math.abs(Math.sin(cyc)) * 8 };
+    p.rAnkle = { x:  12 - Math.sin(cyc) * 14, y: -1 - Math.cos(cyc) * 3 };
+    p.lElbow = { x: -16 - Math.sin(cyc) * 8, y: -28 };
+    p.rElbow = { x:  16 + Math.sin(cyc) * 8, y: -28 };
+  } else if (st === 'jump' || st === 'fall' || st === 'fastfall') {
+    p.lKnee  = { x: -14, y: -10 }; p.lAnkle = { x: -16, y: -4 };
+    p.rKnee  = { x:  14, y: -10 }; p.rAnkle = { x:  16, y: -4 };
+    p.lElbow = { x: -20, y: -38 }; p.lWrist = { x: -28, y: -30 };
+    p.rElbow = { x:  20, y: -38 }; p.rWrist = { x:  28, y: -30 };
+  } else if (st === 'crouch' || st === 'wavedash' || st === 'wavedashspot') {
+    p.head    = { x: 2, y: -38 };
+    p.shoulder= { x: 2, y: -28 };
+    p.hip     = { x: 2, y: -14 };
+    p.lKnee   = { x: -14, y: -8 }; p.lAnkle = { x: -10, y: 0 };
+    p.rKnee   = { x:  10, y: -8 }; p.rAnkle = { x:  14, y: 0 };
+  } else if (st === 'tumble' || st === 'hit') {
+    p.head    = { x: -4, y: -45 };
+    p.lElbow  = { x: -20, y: -22 }; p.lWrist = { x: -30, y: -12 };
+    p.rElbow  = { x:  14, y: -24 }; p.rWrist = { x:  24, y: -14 };
+    p.lKnee   = { x: -14, y: -12 }; p.lAnkle = { x: -18, y: -2 };
+    p.rKnee   = { x:   8, y: -10 }; p.rAnkle = { x:  12, y:  0 };
+  } else if (st === 'shield') {
+    p.lElbow = { x: -14, y: -38 }; p.lWrist = { x: -20, y: -44 };
+    p.rElbow = { x:  14, y: -38 }; p.rWrist = { x:  20, y: -44 };
+  } else if (st === 'attack_ground' || st === 'attack_aerial') {
+    // Punch/kick pose based on move type
+    const isKick = mv && (mv === f.data.moves.dtilt || mv === f.data.moves.dair);
+    if (!isKick) {
+      p.rElbow = { x: 20, y: -36 }; p.rWrist = { x: 36, y: -28 };
+    } else {
+      p.rKnee  = { x: 18, y: -16 }; p.rAnkle = { x: 28, y: -8 };
+    }
+  } else if (st === 'grab') {
+    p.rElbow = { x: 18, y: -38 }; p.rWrist = { x: 30, y: -30 };
+    p.lElbow = { x: 14, y: -38 }; p.lWrist = { x: 28, y: -28 };
+  } else if (st === 'hardkd' || st === 'getup') {
+    // Lying on ground
+    p.head    = { x:  8, y: -8  };
+    p.shoulder= { x:  0, y: -14 };
+    p.hip     = { x: -8, y: -8  };
+    p.lElbow  = { x: -14, y: -18 }; p.lWrist = { x: -22, y: -14 };
+    p.rElbow  = { x:  12, y: -18 }; p.rWrist = { x:  20, y: -14 };
+    p.lKnee   = { x: -16, y: -4  }; p.lAnkle = { x: -22, y:  0  };
+    p.rKnee   = { x:  10, y: -4  }; p.rAnkle = { x:  18, y:  0  };
+  } else if (st === 'idle') {
+    // Subtle idle bob
+    const bob = Math.sin(game.frame * 0.04) * 1.5;
+    p.head.y += bob; p.shoulder.y += bob * 0.5;
+  }
+  return p;
+}
+
+function transformPose(pose, x, y, facing) {
+  const out = {};
+  for (const [k, v] of Object.entries(pose)) {
+    out[k] = { x: x + v.x * facing, y: y + v.y };
+  }
+  return out;
+}
+
+function drawFighters() {
+  for (const f of game.fighters) drawFighter(f);
+}
+
+// ── Projectiles ───────────────────────────────────────────────────
+function drawProjectiles() {
+  for (const p of game.projectiles) {
+    if (!p.alive) continue;
+    ctx.save();
+    ctx.shadowColor = p.color; ctx.shadowBlur = 16;
+    ctx.fillStyle   = p.color;
+    if (p.type === 'fireball') {
+      // Animated fire orb
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r + Math.sin(p.age * 0.4) * 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#FFAA00'; ctx.lineWidth = 2;
+      ctx.stroke();
+    } else {
+      // Ice crystal
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2;
+        const r = i % 2 === 0 ? p.r : p.r * 0.6;
+        i === 0 ? ctx.moveTo(p.x + Math.cos(a)*r, p.y + Math.sin(a)*r)
+                : ctx.lineTo(p.x + Math.cos(a)*r, p.y + Math.sin(a)*r);
+      }
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+
+// ── Lava Pools ────────────────────────────────────────────────────
+function drawLavaPools() {
+  for (const p of game.lavaPoolList) {
+    if (!p.alive) continue;
+    const alpha = Math.min(1, p.life / 60) * 0.78;
+    const pulse = 1 + Math.sin(p.pulse * 0.06) * 0.08;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.shadowColor = '#FF4400'; ctx.shadowBlur = 24;
+    const grd = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * pulse);
+    grd.addColorStop(0, '#FF6600');
+    grd.addColorStop(0.5, '#CC2200');
+    grd.addColorStop(1, 'transparent');
+    ctx.fillStyle = grd;
+    ctx.beginPath();
+    ctx.ellipse(p.x, p.y, p.r * pulse, p.r * 0.35 * pulse, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+// ── Effects ───────────────────────────────────────────────────────
+function drawEffects() {
+  for (const e of game.effects) {
+    const a = e.life / e.maxLife;
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.shadowColor = e.color; ctx.shadowBlur = 20;
+    if (e.type === 'hit') {
+      ctx.strokeStyle = e.color; ctx.lineWidth = 2.5;
+      for (let i = 0; i < 5; i++) {
+        const ang = (i / 5) * Math.PI * 2;
+        const len = 8 + (1 - a) * 18;
+        ctx.beginPath();
+        ctx.moveTo(e.x, e.y);
+        ctx.lineTo(e.x + Math.cos(ang) * len, e.y + Math.sin(ang) * len);
+        ctx.stroke();
+      }
+    } else if (e.type === 'blast') {
+      ctx.strokeStyle = e.color; ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(e.x, e.y, (1 - a) * 80, 0, Math.PI * 2);
+      ctx.stroke();
+    } else if (e.type === 'dot') {
+      ctx.fillStyle = e.color;
+      ctx.beginPath(); ctx.arc(e.x, e.y, 5, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+
+// ── Debug Hitboxes ────────────────────────────────────────────────
+function drawDebugHitboxes() {
+  for (const f of game.fighters) {
+    if (!f.alive) continue;
+    // Hurtbox
+    const hb = f.getHurtbox();
+    ctx.save();
+    ctx.strokeStyle = 'rgba(0,255,100,0.6)'; ctx.lineWidth = 1.5;
+    ctx.strokeRect(hb.x, hb.y, hb.w, hb.h);
+    // Hitbox
+    const hit = f.getHitbox();
+    if (hit) {
+      ctx.strokeStyle = 'rgba(255,50,50,0.85)'; ctx.lineWidth = 2;
+      ctx.strokeRect(hit.x, hit.y, hit.w, hit.h);
+      // Angle arrow
+      const cx = hit.x + hit.w/2, cy = hit.y + hit.h/2;
+      const a = (hit.move.ang * Math.PI / 180);
+      ctx.strokeStyle = 'rgba(255,200,0,0.9)';
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + Math.cos(a)*25*f.facing, cy - Math.sin(a)*25);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+
+function drawDebugInfo() {
+  const dbg = document.getElementById('debugInfo');
+  if (!DEBUG_HITBOXES) { dbg.textContent = 'H: toggle hitboxes'; return; }
+  const lines = ['── DEBUG ──'];
+  for (const f of game.fighters) {
+    if (!f.alive) continue;
+    lines.push(`P${f.pidx+1} ${f.state.toUpperCase()} | ${f.percent.toFixed(1)}% | vx:${f.vx.toFixed(1)} vy:${f.vy.toFixed(1)}`);
+    if (f.currentMove) lines.push(`  MOVE: ${f.moveTimer}/${f.currentMove.tot} lcan:${f.lCancelBuf}`);
+  }
+  dbg.textContent = lines.join('\n');
+}
+
+// ════════════════════════════════════════════════════════════════════
+// MAIN GAME LOOP  (fixed timestep, 60fps physics)
+// ════════════════════════════════════════════════════════════════════
+let acc = 0, prevTs = 0;
+
+function mainLoop(ts) {
+  const dt = Math.min((ts - prevTs) / 1000, 0.05);
+  prevTs = ts;
+
+  if (game.state === 'fight') {
+    acc += dt;
+    while (acc >= FIXED_DT) {
+      fixedUpdate();
+      acc -= FIXED_DT;
+    }
+  }
+
+  render();
+  requestAnimationFrame(mainLoop);
+}
+
+function fixedUpdate() {
+  game.frame++;
+  clearJust();
+
+  const f0 = game.fighters[0];
+  const f1 = game.fighters[1];
+  const inp0 = getInput(0);
+  const inp1 = getInput(1);
+
+  f0.update(inp0, game.fighters, game.projectiles, game.lavaPoolList);
+  f1.update(inp1, game.fighters, game.projectiles, game.lavaPoolList);
+
+  // Projectiles
+  for (const p of game.projectiles) p.update(game.fighters);
+  game.projectiles = game.projectiles.filter(p => p.alive);
+
+  // Lava pools
+  for (const p of game.lavaPoolList) p.update();
+  game.lavaPoolList = game.lavaPoolList.filter(p => p.alive);
+
+  // Effects
+  for (const e of game.effects) e.life--;
+  game.effects = game.effects.filter(e => e.life > 0);
+
+  // DOT tick
+  tickDOTs();
+}
+
+// ════════════════════════════════════════════════════════════════════
+// CHARACTER SELECT
+// ════════════════════════════════════════════════════════════════════
+const csState = { p1: 0, p2: 1, p1locked: false, p2locked: false };
+const CS_THROTTLE = [0, 0]; // prevent input spam
+
+function buildCharSelect() {
+  const grid = document.getElementById('csGrid');
+  grid.innerHTML = '';
+  CHARS.forEach((c, i) => {
+    const card = document.createElement('div');
+    card.className = 'cs-card';
+    card.dataset.idx = i;
+
+    // Mini preview canvas
+    const previewC = document.createElement('canvas');
+    previewC.width = 100; previewC.height = 80;
+    const pctx = previewC.getContext('2d');
+    drawMiniChar(pctx, c, 50, 70);
+    card.appendChild(previewC);
+
+    const name = document.createElement('div'); name.className = 'cs-name'; name.textContent = c.name;
+    const type = document.createElement('div'); type.className = 'cs-type'; type.textContent = c.tag;
+    const abil = document.createElement('div'); abil.className = 'cs-abil';
+    abil.textContent = `◆ ${c.ability.toUpperCase()}`;
+    abil.style.color = { fire:'#FF6644', lava:'#CC3300', ice:'#88CCFF', dash:'#00FF44' }[c.ability] || '#888';
+    card.appendChild(name); card.appendChild(type); card.appendChild(abil);
+
+    card.addEventListener('click', () => handleCSClick(i));
+    grid.appendChild(card);
+  });
+
+  updateCSDisplay();
+}
+
+function drawMiniChar(ctx, charData, x, y) {
+  ctx.clearRect(0, 0, 100, 80);
+  ctx.strokeStyle = charData.color;
+  ctx.lineWidth = 2; ctx.lineCap = 'round';
+  ctx.shadowColor = charData.color; ctx.shadowBlur = 6;
+  // Simple stick
+  ctx.beginPath(); ctx.arc(x, y - 42, 8, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x, y-34); ctx.lineTo(x, y-16); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x, y-28); ctx.lineTo(x-14, y-18); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x, y-28); ctx.lineTo(x+14, y-18); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x, y-16); ctx.lineTo(x-10, y); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x, y-16); ctx.lineTo(x+10, y); ctx.stroke();
+}
+
+function updateCSDisplay() {
+  const cards = document.querySelectorAll('.cs-card');
+  cards.forEach((card, i) => {
+    card.classList.toggle('p1sel', i === csState.p1);
+    card.classList.toggle('p2sel', i === csState.p2);
+    // remove old cursors
+    card.querySelectorAll('.cs-cursor').forEach(el => el.remove());
+    if (i === csState.p1) {
+      const c = document.createElement('div');
+      c.className = 'cs-cursor c1';
+      c.textContent = csState.p1locked ? 'P1✓' : 'P1';
+      card.appendChild(c);
+    }
+    if (i === csState.p2) {
+      const c = document.createElement('div');
+      c.className = 'cs-cursor c2';
+      c.textContent = csState.p2locked ? 'P2✓' : 'P2';
+      card.appendChild(c);
+    }
+  });
+
+  // Stat panels
+  const statStr = (c) =>
+    `<span>${c.name}</span><br>` +
+    `TYPE <span>${c.tag}</span><br>` +
+    `WEIGHT <span>${c.wt}</span><br>` +
+    `SPEED <span>${c.data?.spd ?? c.spd}</span><br>` +
+    `ABILITY <span>${c.ability.toUpperCase()}</span>`;
+
+  document.getElementById('p1stats').innerHTML = 'P1 — ' + statStr(CHARS[csState.p1]);
+  document.getElementById('p2stats').innerHTML = 'P2 — ' + statStr(CHARS[csState.p2]);
+
+  // Dynamic CSS vars
+  document.documentElement.style.setProperty('--p1color', CHARS[csState.p1].color);
+  document.documentElement.style.setProperty('--p2color', CHARS[csState.p2].color);
+}
+
+function handleCSClick(idx) {
+  if (!csState.p1locked) { csState.p1 = idx; csState.p1locked = true; }
+  else if (!csState.p2locked) { csState.p2 = idx; csState.p2locked = true; }
+  updateCSDisplay();
+  if (csState.p1locked && csState.p2locked) setTimeout(startFight, 600);
+}
+
+function csInputTick() {
+  if (game.state !== 'charselect') return;
+  for (let p = 0; p < 2; p++) {
+    if (CS_THROTTLE[p] > 0) { CS_THROTTLE[p]--; continue; }
+    const b   = KB[p];
+    const lock = p === 0 ? csState.p1locked : csState.p2locked;
+    const key  = p === 0 ? 'p1' : 'p2';
+
+    if (!lock) {
+      if (KEYS[b.left])  { csState[key] = (csState[key] - 1 + CHARS.length) % CHARS.length; CS_THROTTLE[p] = 10; updateCSDisplay(); }
+      if (KEYS[b.right]) { csState[key] = (csState[key] + 1) % CHARS.length; CS_THROTTLE[p] = 10; updateCSDisplay(); }
+      if (KEYS[b.up])    { csState[key] = (csState[key] - 4 + CHARS.length) % CHARS.length; CS_THROTTLE[p] = 10; updateCSDisplay(); }
+      if (KEYS[b.down])  { csState[key] = (csState[key] + 4) % CHARS.length; CS_THROTTLE[p] = 10; updateCSDisplay(); }
+    }
+    if (JUST[b.attack] || JUST[b.jump2]) {
+      if (!lock) {
+        if (p === 0) csState.p1locked = true; else csState.p2locked = true;
+        updateCSDisplay();
+        if (csState.p1locked && csState.p2locked) setTimeout(startFight, 600);
+      }
+    }
+  }
+}
+
+// Run CS input on animation frame when in charselect
+function csLoop() {
+  csInputTick();
+  clearJust();
+  if (game.state === 'charselect') requestAnimationFrame(csLoop);
+}
+
+// ════════════════════════════════════════════════════════════════════
+// MATCH MANAGEMENT
+// ════════════════════════════════════════════════════════════════════
+function startFight() {
+  const c0 = CHARS[csState.p1];
+  const c1 = CHARS[csState.p2];
+
+  game.fighters    = [new Fighter(c0, 0, 440), new Fighter(c1, 1, 840)];
+  game.projectiles = [];
+  game.effects     = [];
+  game.lavaPoolList = [];
+  game.frame       = 0;
+  game.state       = 'fight';
+
+  // HUD colors
+  document.getElementById('p1hud').style.setProperty('--c1', c0.color);
+  document.getElementById('p2hud').style.setProperty('--c2', c1.color);
+  document.getElementById('p1name').textContent = c0.name.toUpperCase();
+  document.getElementById('p2name').textContent = c1.name.toUpperCase();
+  updateHUD();
+
+  show('titleScreen', false);
+  show('charSelect',  false);
+  show('results',     false);
+  document.getElementById('hud').style.display = 'flex';
+
+  acc = 0; prevTs = performance.now();
+}
+
+function endMatch() {
+  game.state = 'results';
+  const winner = game.fighters.find(f => f.stocks > 0) ?? game.fighters[0];
+  document.getElementById('winnerName').textContent = winner.data.name.toUpperCase();
+  document.getElementById('winnerName').style.color = winner.data.color;
+  document.getElementById('winnerName').style.textShadow = `0 0 20px ${winner.data.color}`;
+  show('results', true);
+}
+
+function show(id, visible) {
+  document.getElementById(id).classList.toggle('hidden', !visible);
+}
+
+// ════════════════════════════════════════════════════════════════════
+// BOOT
+// ════════════════════════════════════════════════════════════════════
+document.getElementById('titleStartBtn').addEventListener('click', () => {
+  show('titleScreen', false);
+  show('charSelect', true);
+  game.state = 'charselect';
+  buildCharSelect();
+  requestAnimationFrame(csLoop);
+});
+
+document.getElementById('rematchBtn').addEventListener('click', () => {
+  show('results', false);
+  csState.p1locked = false; csState.p2locked = false;
+  startFight();
+});
+
+document.getElementById('csBtn').addEventListener('click', () => {
+  show('results', false);
+  show('charSelect', true);
+  game.state = 'charselect';
+  csState.p1locked = false; csState.p2locked = false;
+  buildCharSelect();
+  requestAnimationFrame(csLoop);
+});
+
+window.addEventListener('keydown', e => {
+  if (e.code === 'Enter' && game.state === 'title') document.getElementById('titleStartBtn').click();
+});
+
+document.getElementById('hud').style.display = 'none';
+requestAnimationFrame(mainLoop);
+</script>
+</body>
+</html>
