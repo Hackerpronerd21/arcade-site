@@ -10,6 +10,7 @@ export default defineConfig({
         flappy: resolve(__dirname, "games/flappy/index.html"),
         "dine-n-dash": resolve(__dirname, "games/dine-n-dash/index.html"),
         "emoji-neon-tris": resolve(__dirname, "games/emoji-neon-tris/index.html"),
+        "breakout": resolve(__dirname, "games/breakout/index.html"),
       },
     },
   },
