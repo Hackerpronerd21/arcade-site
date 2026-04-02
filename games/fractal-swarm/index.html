@@ -739,14 +739,13 @@ function startWave(w) {
   novas    = [];
   particles = [];
 
-  // Pre-warm emoji cache for this wave theme so splits never stutter
-  const theme = (w - 1) % 4;
-  for (let d = 0; d < 4; d++) {
-    getEmojiCanvas(CFG.WAVE_EMOJIS[theme % 4][d], CFG.SIZES[d], CFG.GLOW[d]);
-  }
-
   const theme  = (w - 1) % 4;
   const nGiant = Math.min(w, 5);
+
+  // Pre-warm emoji cache for this wave theme so splits never stutter
+  for (let d = 0; d < 4; d++) {
+    getEmojiCanvas(CFG.WAVE_EMOJIS[theme][d], CFG.SIZES[d], CFG.GLOW[d]);
+  }
 
   for (let i = 0; i < nGiant; i++) {
     const xOff = nGiant === 1
