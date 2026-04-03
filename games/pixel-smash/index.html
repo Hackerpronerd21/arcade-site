@@ -244,7 +244,7 @@ const PREV = {};   // state last physics tick
 window.addEventListener('keydown', e => {
   if (!KEYS[e.code]) JUST[e.code] = true;
   KEYS[e.code] = true;
-  if (e.code === 'KeyH') DEBUG_HITBOXES = !DEBUG_HITBOXES;
+  if (e.code === 'Backquote') DEBUG_HITBOXES = !DEBUG_HITBOXES;
   if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))
     e.preventDefault();
 });
@@ -1449,7 +1449,7 @@ function drawDebugHitboxes() {
 
 function drawDebugInfo() {
   const dbg = document.getElementById('debugInfo');
-  if (!DEBUG_HITBOXES) { dbg.textContent = 'H: toggle hitboxes'; return; }
+  if (!DEBUG_HITBOXES) { dbg.textContent = '`: toggle hitboxes'; return; }
   const lines = ['── DEBUG ──'];
   for (const f of game.fighters) {
     if (!f.alive) continue;
@@ -1482,12 +1482,13 @@ function mainLoop(ts) {
 
 function fixedUpdate() {
   game.frame++;
-  clearJust();
 
+  // Read inputs BEFORE clearing JUST — otherwise attackJ/specialJ are always false
   const f0 = game.fighters[0];
   const f1 = game.fighters[1];
   const inp0 = getInput(0);
   const inp1 = getInput(1);
+  clearJust();
 
   f0.update(inp0, game.fighters, game.projectiles, game.lavaPoolList);
   f1.update(inp1, game.fighters, game.projectiles, game.lavaPoolList);
