@@ -358,14 +358,14 @@ const FACTIONS = {
 const ASSETS = {};
 const ASSET_MAP = {
   tilesheet:   'assets/tilesheet.png',
-  boss:        'assets/boss spider.png',
-  worker:      'assets/woker wpoider.png',
+  boss:        'assets/boss-spider.png',
+  worker:      'assets/worker-spider.png',
   webspitter:  'assets/webspitter.png',
   websniper:   'assets/websniper.png',
-  webbeast:    'assets/web beast.png',
+  webbeast:    'assets/web-beast.png',
   titan:       'assets/spidergiant.png',
-  structures:  'assets/spiderr structurees.png',
-  trapdoor:    'assets/trap door tower.png',
+  structures:  'assets/spider-structures.png',
+  trapdoor:    'assets/trapdoor-tower.png',
 };
 
 async function loadAssets() {
@@ -1296,6 +1296,8 @@ function drawSprite(img, section, dirFrame, dx, dy, dw, dh, alpha = 1) {
   const sx = dirFrame * SP_FW;
   const sy = spriteRow(section);
   ctx.globalAlpha = alpha;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(img, sx, sy, SP_FW, SP_FH, dx, dy, dw, dh);
   ctx.globalAlpha = 1;
 }
@@ -1325,6 +1327,8 @@ function renderMap() {
 
       if (ts) {
         ctx.globalAlpha = alpha;
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
         ctx.drawImage(ts, tDef.sx, tDef.sy, tDef.sw || 64, tDef.sh || 64,
           screenX, screenY, tSz+1, tSz+1);
         ctx.globalAlpha = 1;
