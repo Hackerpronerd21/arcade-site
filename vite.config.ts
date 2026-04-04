@@ -13,6 +13,7 @@ export default defineConfig({
         "breakout":       resolve(__dirname, "games/breakout/index.html"),
         "fractal-swarm":  resolve(__dirname, "games/fractal-swarm/index.html"),
         "pixel-smash":    resolve(__dirname, "games/pixel-smash/index.html"),
+        "time-fracture-war": resolve(__dirname, "games/time-fracture-war/index.html"),
       },
     },
   },
