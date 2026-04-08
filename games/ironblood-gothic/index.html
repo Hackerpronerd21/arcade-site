@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ironblood Gothic — Xavier's Arcade</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0d1117; overflow: hidden; }
+    #back {
+      position: fixed;
+      top: 12px;
+      left: 14px;
+      z-index: 9999;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.45rem;
+      color: #a78bfa;
+      text-decoration: none;
+      letter-spacing: 1px;
+      opacity: 0.6;
+      transition: opacity 0.15s;
+    }
+    #back:hover { opacity: 1; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+  <a id="back" href="/">← Arcade</a>
+  <script type="module" src="/games/ironblood-gothic/main.ts"></script>
+</body>
+</html>
