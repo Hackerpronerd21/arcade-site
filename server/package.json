@@ -1,0 +1,17 @@
+{
+  "name": "tron-server",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev":   "bun --watch src/index.ts",
+    "start": "bun src/index.ts"
+  },
+  "dependencies": {
+    "socket.io": "^4.7.5",
+    "express":   "^4.21.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "typescript":     "^5.3.0"
+  }
+}
